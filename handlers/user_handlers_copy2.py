@@ -6,9 +6,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import default_state, State, StatesGroup
 from aiogram.filters import Command, CommandStart, Text, StateFilter
 from aiogram.types import CallbackQuery, Message, URLInputFile, InputMediaPhoto, ContentType
-from database.database import (event_list, insert_event_db, insert_reserv_db, del_event_db,
-                               select_event_db, select_reserv_db, update_event_db, del_reserv_db,
-                               select_capacity_event_db)
+from database.database import event_db, user_dict
+# from keyboards.pagination_kb import (create_pag_kb_question, create_pag_kb_photo)
 from keyboards.other_kb import create_event_kb
 from lexicon.lexicon import LEXICON
 from filters.filters import IsAdmin
@@ -49,6 +48,13 @@ class FSMAdmin(StatesGroup):
 # и отправлять ему стартовое меню
 @router.message(CommandStart(), StateFilter(default_state))
 async def process_start_cammand(message: Message):
+    # events_list = []
+    # num = 1
+    # for event in event_db:
+    #     events_list.append(f"{num}) {event['name']}\nДата проведения: {event['date']}")
+    #     num += 1
+    # events = f'\n\n'.join(events_list)
+    # text = f"{LEXICON['/start']}\n\n{events}\n\nЧтобы перейти к выбору мероприятия введите команду - /choose"
     text = f"{LEXICON['/start']}\n\nЧтобы перейти к выбору мероприятия введите команду -\n/choose"
     photo = URLInputFile(url=LEXICON['menu_photo'])
     await message.answer_photo(
@@ -119,7 +125,6 @@ async def process_cancel_command_state(message: Message, state: FSMContext):
 async def process_choose_command(message: Message, state: FSMContext):
     events_list = []
     num = 1
-    event_db = select_event_db(event_list)
     for event in event_db:
         if event['capacity'] == 0:
             continue
@@ -136,9 +141,8 @@ async def process_choose_command(message: Message, state: FSMContext):
 
 # Этот хэндлер будет срабатывать, если введен корректный номер мероприятия
 @router.message(StateFilter(FSMFillForm.event_choosing),
-            lambda x: x.text.isdigit() and 1 <= int(x.text) <= len(select_event_db(event_list)))
+            lambda x: x.text.isdigit() and 1 <= int(x.text) <= len(event_db))
 async def process_event_choosing(message: Message, state: FSMContext):
-    event_db = select_event_db(event_list)
     event = event_db[int(message.text) - 1]['name']
     capacity = event_db[int(message.text) - 1]['capacity']
     await message.answer(text=f'Вы выбрали мероприятие: {event}\n'
@@ -160,7 +164,7 @@ async def process_event_choosing(message: Message, state: FSMContext):
 @router.message(StateFilter(FSMFillForm.event_choosing))
 async def warning_not_event(message: Message):
     await message.answer(
-        text=f'Для выбора мероприятия введите номер мероприятия от 1 до {len(select_event_db(event_list))}\n'
+        text=f'Для выбора мероприятия введите номер мероприятия от 1 до {len(event_db)}\n'
              'Если вы хотите прервать бронирование - '
              'отправьте команду /cancel')
 
@@ -169,17 +173,25 @@ async def warning_not_event(message: Message):
 @router.message(StateFilter(FSMFillForm.guests_choosing),
             lambda x: x.text.isdigit() and 1 <= int(x.text))
 async def process_guests_choosing(message: Message, state: FSMContext):
+    capacity = None
     db = await state.get_data()
-    capacity = int(select_capacity_event_db(db['event']))
+    for event in event_db:
+        if event['name'] ==  db['event']:
+            capacity = event['capacity']
     if int(message.text) <= capacity:
         # Cохраняем количество гостей в хранилище по ключу "guests"
         guests = int(message.text)
-        # await state.update_data(guests=guests)
-        new_capacity = str(capacity - guests)
-        update_event_db(new_capacity, db['event'])
-        # Добавляем в базу данных бронирование пользователя
-        insert_reserv_db(str(message.from_user.id), db['event'], str(guests),
-                         db['date'], db["place"], db['entry'], db['start'])
+        await state.update_data(guests=guests)
+        for i in range(len(event_db)):
+            if event_db[i]['name'] ==  db['event']:
+                event_db[i]['capacity'] -= int(message.text)
+        print(event_db)
+        # Добавляем в "базу данных" бронирование пользователя
+        # по ключу id пользователя
+        if message.from_user.id not in user_dict:
+            user_dict[message.from_user.id] = []
+        user_dict[message.from_user.id].append(await state.get_data())
+
         # Завершаем машину состояний
         await state.clear()
         # Отправляем в чат сообщение о бронировании
@@ -210,11 +222,10 @@ async def warning_not_guests(message: Message):
 @router.message(Command(commands='showreservation'), StateFilter(default_state))
 async def process_showreservation_command(message: Message):
     # Отправляем пользователю информацию о бронировании, если оно есть в "базе данных"
-    reserv_list = select_reserv_db(str(message.from_user.id))
-    if len(reserv_list) != 0:
+    if message.from_user.id in user_dict:
         booking_list = []
         num = 1
-        for booking in reserv_list:
+        for booking in user_dict[message.from_user.id]:
             booking_list.append(f'{num}) {booking["event"]}'
                                 f' на {booking["guests"]} гостей.\n'
                                 f'Дата проведения: {booking["date"]}\n'
@@ -234,12 +245,11 @@ async def process_showreservation_command(message: Message):
 # и отправлять в чат данные о бронировании и вопрос о снятии бронирования
 @router.message(Command(commands='cancelreservation'), StateFilter(default_state))
 async def process_cancelreservation_command(message: Message, state: FSMContext):
-    # Отправляем пользователю информацию о бронировании, если оно есть в базе данных
-    reserv_list = select_reserv_db(str(message.from_user.id))
-    if len(reserv_list) != 0:
+    # Отправляем пользователю информацию о бронировании, если оно есть в "базе данных"
+    if message.from_user.id in user_dict:
         booking_list = []
         num = 1
-        for booking in reserv_list:
+        for booking in user_dict[message.from_user.id]:
             booking_list.append(f'{num}) {booking["event"]}'
                                 f' на {booking["guests"]} гостей.\n'
                                 f'Дата проведения: {booking["date"]}\n'
@@ -262,20 +272,17 @@ async def process_cancelreservation_command(message: Message, state: FSMContext)
 @router.message(StateFilter(FSMCancelReserv.cancel_reservation),
             lambda x: x.text.isdigit() and 1 <= int(x.text))
 async def process_cancel_reservation(message: Message, state: FSMContext):
-    # Получаем список бронирований
-    reserv_list = select_reserv_db(str(message.from_user.id))
-    # Проверям корректность введенных данных
-    if int(message.text) <= len(reserv_list):
-        # Получаем количество свободных мест на мероприятие и добавляем количество отмененных мест
-        new_capacity = int(select_capacity_event_db(reserv_list[int(message.text) - 1]['event']))
-        new_capacity += int(reserv_list[int(message.text) - 1]['guests'])
-        # Удаляем бронирование
-        del_reserv_db(str(message.from_user.id), reserv_list[int(message.text) - 1]['id'])
-        # Обновляем количество мест на мероприятие
-        update_event_db(str(new_capacity), reserv_list[int(message.text) - 1]['event'])
+    if int(message.text) <= len(user_dict[message.from_user.id]):
+        for i in range(len(event_db)):
+            if event_db[i]['name'] ==  user_dict[message.from_user.id][int(message.text) - 1]['event']:
+                event_db[i]['capacity'] += user_dict[message.from_user.id][int(message.text) - 1]['guests']
+                print(event_db[i]['capacity'])
+        user_dict[message.from_user.id].pop(int(message.text) - 1)
+        if len(user_dict[message.from_user.id]) == 0:
+            user_dict.pop(message.from_user.id)
         # Завершаем машину состояний
         await state.clear()
-        # Отправляем в чат сообщение об отмене бронирования
+        # Отправляем в чат сообщение о бронировании
         await message.answer(
             text=f'Бронирование отменено\nЧтобы перейти к выбору мероприятия введите команду /choose')
     else:
@@ -296,9 +303,17 @@ async def process_addevent_command(message: Message, state: FSMContext):
 @router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMAdmin.add_event))
 async def process_add_event(message: Message, state: FSMContext):
     add_list = [i.strip() for i in message.text.split(';')]
+    print(add_list)
     if len(add_list) == 8:
-        insert_event_db(add_list[0], add_list[1], add_list[2], add_list[3],
-                        add_list[4], add_list[5], add_list[6], add_list[7])
+        event_db.append({'name': add_list[0],
+                        'date': add_list[1],
+                        'capacity': int(add_list[2]),
+                        'description': add_list[3],
+                        'place': add_list[4],
+                        'entry': add_list[5],
+                        'start': add_list[6],
+                        'price': add_list[7]})
+        print(event_db)
         await message.answer('Мероприятие добавлено')
         # Завершаем машину состояний
         await state.clear()
@@ -312,11 +327,9 @@ async def process_add_event(message: Message, state: FSMContext):
 async def process_delevent_command(message: Message, state: FSMContext):
     events_list = []
     num = 1
-    event_db = select_event_db(event_list)
     for event in event_db:
         events_list.append(f"{num}) {event['name']}\n{event['description']}\n"
-                           f"Дата и время проведения: {event['date']} в {event['start']}\n"
-                           f"Cтоимость: {event['price']}")
+                           f"Дата и время проведения: {event['date']} в {event['start']}")
         num += 1
     events = f'\n\n'.join(events_list)
     text = f"{events}\n\nЧтобы удалить мероприятие введите номер мероприятия от 1 до {len(event_db)}"
@@ -327,10 +340,9 @@ async def process_delevent_command(message: Message, state: FSMContext):
 
 # Этот хэндлер будет удалять мероприятие
 @router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMAdmin.del_event),
-lambda x: x.text.isdigit() and 1 <= int(x.text) <= len(select_event_db(event_list)))
+lambda x: x.text.isdigit() and 1 <= int(x.text) <= len(event_db))
 async def process_add_event(message: Message, state: FSMContext):
-    event_db = select_event_db(event_list)
-    del_event_db(event_db[int(message.text) - 1]['name'])
+    event_db.pop(int(message.text) - 1)
     await message.answer('Мероприятие удалено')
     # Завершаем машину состояний
     await state.clear()
@@ -341,6 +353,24 @@ async def process_add_event(message: Message, state: FSMContext):
 @router.message(StateFilter(FSMAdmin.del_event))
 async def del_event(message: Message):
     await message.answer(
-        text=f'Для удаления мероприятия введите номер мероприятия от 1 до {len(select_event_db(event_list))}\n'
+        text=f'Для удаления мероприятия введите номер мероприятия от 1 до {len(event_db)}\n'
              'Если вы хотите прервать удаление - '
              'отправьте команду /cancel')
+
+
+# # Этот хэндлер будет срабатывать на нажатие кнопки при
+# # подтвержении выбранного мероприятия
+# @router.callback_query(StateFilter(FSMFillForm.event_choosing),
+#                    Text(text=['no', 'yes']))
+# async def process_event_press(callback: CallbackQuery, state: FSMContext):
+#     if callback.data == 'yes':
+
+#     # Cохраняем пол (callback.data нажатой кнопки) в хранилище,
+#     # по ключу "gender"
+#     await state.update_data(gender=callback.data)
+#     # Удаляем сообщение с кнопками, потому что следующий этап - загрузка фото
+#     # чтобы у пользователя не было желания тыкать кнопки
+#     await callback.message.delete()
+#     await callback.message.answer(
+#         text='Спасибо! А теперь загрузите, пожалуйста, ваше фото'
+#     )
