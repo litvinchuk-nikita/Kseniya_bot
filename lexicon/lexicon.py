@@ -30,6 +30,7 @@ LEXICON: dict[str, str] = {
                          f'18:30;\n'
                          f'19:00\n'
                          f'100 руб.',
+    'other': f'Не понимаю вас..\nДля ознакомления с возможностями бота введите команду /help',
     'menu_photo': 'https://robokassa.com/upload/medialibrary/12e/12ec7d81223bf2b07bf44e4e36333677.jpg'}
 
 LEXICON_COMMANDS: dict[str, str] = {

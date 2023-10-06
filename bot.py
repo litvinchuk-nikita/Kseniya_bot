@@ -4,8 +4,11 @@ import logging
 from aiogram import Bot, Dispatcher
 from config_data.config import Config, load_config
 from aiogram.fsm.storage.redis import RedisStorage, Redis
-from handlers import user_handlers
+from handlers import user_handlers, other_handlers
+from apsched.apsched import send_message_cron
 from keyboards.main_menu import set_main_menu
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from datetime import datetime, timedelta
 
 # инициализируем логгер
 logger = logging.getLogger(__name__)
@@ -35,13 +38,20 @@ async def main():
     bot: Bot = Bot(token=config.tg_bot.token)
     dp: Dispatcher = Dispatcher(storage=storage)
 
+    # # инициализируем scheduler
+    scheduler = AsyncIOScheduler(timezone='Europe/Kaliningrad')
+    scheduler.add_job(send_message_cron, trigger='cron', hour=datetime.now().hour,
+                    minute=datetime.now().minute + 1, start_date=datetime.now(), kwargs={'bot': bot})
+
     # настраиваем главное меню бота
     await set_main_menu(bot)
 
     # регестрируем роутеры в диспетчере
     dp.include_router(user_handlers.router)
-    # dp.include_router(other_handlers.router)
+    dp.include_router(other_handlers.router)
 
+    # запускаем scheduler
+    scheduler.start()
     # запускаем polling
     await dp.start_polling(bot)
 

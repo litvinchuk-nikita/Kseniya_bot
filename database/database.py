@@ -4,9 +4,6 @@ import sqlite3
 # инициализируем "базу данных" с мероприятиями
 event_list: list[dict[str, str | int]] = []
 
-# # Создаем "базу данных" пользователей
-# user_dict: dict[int, list[dict[str, str | int | bool]]] = {}
-
 def insert_event_db(name, date, capacity, description, place, entry, start, price):
     try:
         conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
@@ -32,7 +29,7 @@ def select_event_db(event_list):
         conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
         cur = conn.cursor()
         print("База данных подключена к SQLite")
-        cur.execute('SELECT name, date, capacity, description, place, entry, start, price FROM event')
+        cur.execute('SELECT name, date, capacity, description, place, entry, start, price, id FROM event')
         print("Данные получены")
         events = cur.fetchall()
         cur.close()
@@ -44,7 +41,8 @@ def select_event_db(event_list):
                                'place': event[4],
                                'entry': event[5],
                                'start': event[6],
-                               'price': event[7]})
+                               'price': event[7],
+                               'id': event[8]})
         return event_list
     except sqlite3.Error as error:
         print("Ошибка при получении данных из sqlite", error.__class__, error)
@@ -89,12 +87,12 @@ def update_event_db(capacity, name):
             print("Соединение с SQLite закрыто")
 
 
-def del_event_db(name_event):
+def del_event_db(name_event, event_id):
     try:
         conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
         cur = conn.cursor()
         print("База данных подключена к SQLite")
-        cur.execute('DELETE FROM event WHERE name="%s";' % (name_event))
+        cur.execute('DELETE FROM event WHERE name="%s" AND id="%s";' % (name_event, event_id))
         conn.commit()
         print("Данные удалены")
         cur.close()
@@ -160,6 +158,33 @@ def select_reserv_db(user_id):
                                'entry': reserv[4],
                                'start': reserv[5],
                                'id': reserv[6]})
+        return reservs_list
+    except sqlite3.Error as error:
+        print("Ошибка при получении данных из sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def select_all_reserv_db():
+    try:
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('SELECT event, guests, date, place, entry, start, user_id FROM user')
+        print("Данные получены")
+        reservs = cur.fetchall()
+        cur.close()
+        reservs_list = []
+        for reserv in reservs:
+            reservs_list.append({'event': reserv[0],
+                               'guests': reserv[1],
+                               'date': reserv[2],
+                               'place': reserv[3],
+                               'entry': reserv[4],
+                               'start': reserv[5],
+                               'user_id': reserv[6]})
         return reservs_list
     except sqlite3.Error as error:
         print("Ошибка при получении данных из sqlite", error.__class__, error)

@@ -12,6 +12,7 @@ from database.database import (event_list, insert_event_db, insert_reserv_db, de
 from keyboards.other_kb import create_event_kb
 from lexicon.lexicon import LEXICON
 from filters.filters import IsAdmin
+from services.file_handling import now_time
 
 router: Router = Router()
 
@@ -42,7 +43,6 @@ class FSMAdmin(StatesGroup):
     # бот в разные моменты взаимодействия с пользователем
     add_event = State()       # Состояние добавления мероприятия
     del_event = State()       # Состояние добавления мероприятия
-
 
 
 # этот хэндлер будет срабатывать на команду "/start" -
@@ -121,7 +121,7 @@ async def process_choose_command(message: Message, state: FSMContext):
     num = 1
     event_db = select_event_db(event_list)
     for event in event_db:
-        if event['capacity'] == 0:
+        if event['capacity'] == 0 or now_time(f'{event["date"]} {event["start"]}') < datetime.now():
             continue
         events_list.append(f"{num}) {event['name']}\n{event['description']}\n"
                            f"Дата и время проведения: {event['date']} в {event['start']}\n"
@@ -139,6 +139,9 @@ async def process_choose_command(message: Message, state: FSMContext):
             lambda x: x.text.isdigit() and 1 <= int(x.text) <= len(select_event_db(event_list)))
 async def process_event_choosing(message: Message, state: FSMContext):
     event_db = select_event_db(event_list)
+    for event in event_db:
+        if event['capacity'] == 0 or now_time(f'{event["date"]} {event["start"]}') < datetime.now():
+            event_db.remove(event)
     event = event_db[int(message.text) - 1]['name']
     capacity = event_db[int(message.text) - 1]['capacity']
     await message.answer(text=f'Вы выбрали мероприятие: {event}\n'
@@ -330,7 +333,7 @@ async def process_delevent_command(message: Message, state: FSMContext):
 lambda x: x.text.isdigit() and 1 <= int(x.text) <= len(select_event_db(event_list)))
 async def process_add_event(message: Message, state: FSMContext):
     event_db = select_event_db(event_list)
-    del_event_db(event_db[int(message.text) - 1]['name'])
+    del_event_db(event_db[int(message.text) - 1]['name'], event_db[int(message.text) - 1]['id'])
     await message.answer('Мероприятие удалено')
     # Завершаем машину состояний
     await state.clear()
