@@ -11,7 +11,8 @@ def now_date():
 
 def select_all_reserv_db():
     try:
-        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
         cur = conn.cursor()
         print("База данных подключена к SQLite")
         cur.execute('SELECT event, guests, date, place, entry, start, user_id FROM user')
