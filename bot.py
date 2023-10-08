@@ -40,8 +40,8 @@ async def main():
 
     # # инициализируем scheduler
     scheduler = AsyncIOScheduler(timezone='Europe/Kaliningrad')
-    scheduler.add_job(send_message_cron, trigger='cron', hour=datetime.now().hour,
-                    minute=datetime.now().minute + 1, start_date=datetime.now(), kwargs={'bot': bot})
+    scheduler.add_job(send_message_cron, trigger='cron', hour=18,
+                    minute=0, start_date=datetime.now(), kwargs={'bot': bot})
 
     # настраиваем главное меню бота
     await set_main_menu(bot)

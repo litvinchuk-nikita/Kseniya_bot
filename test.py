@@ -1,42 +1,42 @@
-# import sqlite3
+import sqlite3
 # from datetime import datetime
 
 # event_list: list[dict[str, str | int]] = []
 
-# def create_table_db():
-#     try:
-#         conn = sqlite3.connect('Kseniya_bot/db.sql')
-#         cur = conn.cursor()
-#         print("База данных подключена к SQLite")
-#         # cur.execute('CREATE TABLE event(id INTEGER PRIMARY KEY AUTOINCREMENT, name VARCHAR(150), date VARCHAR(10), capacity VARCHAR(4), '
-#         #             'description VARCHAR(255), place VARCHAR(150), entry VARCHAR(10), start VARCHAR(10), price VARCHAR(100))')
-#         cur.execute('CREATE TABLE user(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id VARCHAR(15), event VARCHAR(150), guests VARCHAR(4), date VARCHAR(10), '
-#                     'place VARCHAR(150), entry VARCHAR(10), start VARCHAR(10))')
-#         conn.commit()
-#         print("Таблица SQLite создана")
-#         cur.close()
-#     except sqlite3.Error as error:
-#         print("Ошибка при подключении к sqlite", error)
-#     finally:
-#         if (conn):
-#             conn.close()
-#             print("Соединение с SQLite закрыто")
+def create_table_db():
+    try:
+        conn = sqlite3.connect('Kseniya_bot/db.sql')
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        # cur.execute('CREATE TABLE event(id INTEGER PRIMARY KEY AUTOINCREMENT, name VARCHAR(150), date VARCHAR(10), capacity VARCHAR(4), '
+        #             'description VARCHAR(255), place VARCHAR(150), entry VARCHAR(10), start VARCHAR(10), price VARCHAR(100))')
+        cur.execute('CREATE TABLE user(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id VARCHAR(15), event VARCHAR(150), guests VARCHAR(4), date VARCHAR(10), '
+                    'place VARCHAR(150), entry VARCHAR(10), start VARCHAR(10), user_name VARCHAR(100), email VARCHAR(50))')
+        conn.commit()
+        print("Таблица SQLite создана")
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при подключении к sqlite", error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
 
-# def delete_table_db():
-#     try:
-#         conn = sqlite3.connect('Kseniya_bot/db.sql')
-#         cur = conn.cursor()
-#         print("База данных подключена к SQLite")
-#         cur.execute('DROP TABLE user')
-#         conn.commit()
-#         print("Таблица SQLite удалена")
-#         cur.close()
-#     except sqlite3.Error as error:
-#         print("Ошибка при подключении к sqlite", error)
-#     finally:
-#         if (conn):
-#             conn.close()
-#             print("Соединение с SQLite закрыто")
+def delete_table_db():
+    try:
+        conn = sqlite3.connect('Kseniya_bot/db.sql')
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('DROP TABLE user')
+        conn.commit()
+        print("Таблица SQLite удалена")
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при подключении к sqlite", error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
 
 
 # def insert_event_db(name, date, capacity, description, place, entry, start, price):
