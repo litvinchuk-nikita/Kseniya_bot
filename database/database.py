@@ -1,13 +1,13 @@
 import sqlite3
 
 
-# инициализируем "базу данных" с мероприятиями
-event_list: list[dict[str, str | int]] = []
+# # инициализируем "базу данных" с мероприятиями
+# event_list: list[dict[str, str | int]] = []
 
 def insert_event_db(name, date, capacity, description, place, entry, start, price):
     try:
-        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
-        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
         cur = conn.cursor()
         print("База данных подключена к SQLite")
         cur.execute('INSERT INTO event (name, date, capacity, description, place, entry, start, price)'
@@ -24,11 +24,11 @@ def insert_event_db(name, date, capacity, description, place, entry, start, pric
             print("Соединение с SQLite закрыто")
 
 
-def select_event_db(event_list):
+def select_event_db():
     try:
-        event_list.clear()
-        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
-        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        event_list = []
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
         cur = conn.cursor()
         print("База данных подключена к SQLite")
         cur.execute('SELECT name, date, capacity, description, place, entry, start, price, id FROM event')
@@ -54,11 +54,98 @@ def select_event_db(event_list):
             print("Соединение с SQLite закрыто")
 
 
+def select_one_event(id):
+    try:
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('SELECT * FROM event WHERE id="%s"' % (id))
+        print("Данные получены")
+        event = cur.fetchall()
+        cur.close()
+        return {'id': event[0][0],
+                'name': event[0][1],
+                'date': event[0][2],
+                'capacity': int(event[0][3]),
+                'description': event[0][4],
+                'place': event[0][5],
+                'entry': event[0][6],
+                'start': event[0][7],
+                'price': event[0][8]}
+    except sqlite3.Error as error:
+        print("Ошибка при получении данных из sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def select_event_id():
+    try:
+        id_list = []
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('SELECT id FROM event')
+        print("Данные получены")
+        events = cur.fetchall()
+        cur.close()
+        for id in events:
+            id_list.append(id[0])
+        return id_list
+    except sqlite3.Error as error:
+        print("Ошибка при получении данных из sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def select_one_event_id(event_name):
+    try:
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('SELECT id FROM event WHERE name="%s"' % (event_name))
+        print("Данные получены")
+        id = cur.fetchone()
+        cur.close()
+        return id[0]
+    except sqlite3.Error as error:
+        print("Ошибка при получении данных из sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def select_capacity_event(event_id):
+    try:
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('SELECT capacity FROM event WHERE id="%s"' % (event_id))
+        print("Данные получены")
+        capacity = cur.fetchone()
+        cur.close()
+        return capacity[0]
+    except sqlite3.Error as error:
+        print("Ошибка при получении данных из sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
 def select_event_name_db():
     try:
         name_list = []
-        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
-        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
         cur = conn.cursor()
         print("База данных подключена к SQLite")
         cur.execute('SELECT name FROM event')
@@ -76,10 +163,29 @@ def select_event_name_db():
             print("Соединение с SQLite закрыто")
 
 
+def select_resrv_guests_and_name_event(id):
+    try:
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('SELECT event, guests FROM user WHERE id="%s"' % (id))
+        print("Данные получены")
+        event_name = cur.fetchall()
+        cur.close()
+        return event_name[0]
+    except sqlite3.Error as error:
+        print("Ошибка при получении данных из sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
 def select_capacity_event_db(event_name):
     try:
-        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
-        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
         cur = conn.cursor()
         print("База данных подключена к SQLite")
         cur.execute('SELECT capacity FROM event WHERE name="%s"' % (event_name))
@@ -95,31 +201,13 @@ def select_capacity_event_db(event_name):
             print("Соединение с SQLite закрыто")
 
 
-def update_event_db(capacity, name):
+def del_event_db(event_id):
     try:
-        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
-        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
         cur = conn.cursor()
         print("База данных подключена к SQLite")
-        cur.execute('UPDATE event SET capacity="%s" WHERE name="%s";' % (str(capacity), name))
-        conn.commit()
-        print("Данные обновлены")
-        cur.close()
-    except sqlite3.Error as error:
-        print("Ошибка при обновлении данных из sqlite", error.__class__, error)
-    finally:
-        if (conn):
-            conn.close()
-            print("Соединение с SQLite закрыто")
-
-
-def del_event_db(name_event, event_id):
-    try:
-        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
-        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
-        cur = conn.cursor()
-        print("База данных подключена к SQLite")
-        cur.execute('DELETE FROM event WHERE name="%s" AND id="%s";' % (name_event, event_id))
+        cur.execute('DELETE FROM event WHERE id="%s";' % (event_id))
         conn.commit()
         print("Данные удалены")
         cur.close()
@@ -133,8 +221,8 @@ def del_event_db(name_event, event_id):
 
 def insert_reserv_db(user_id, event, guests, date, place, entry, start, user_name, email):
     try:
-        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
-        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
         cur = conn.cursor()
         print("База данных подключена к SQLite")
         cur.execute('INSERT INTO user (user_id, event, guests, date, place, entry, start, user_name, email)'
@@ -153,8 +241,8 @@ def insert_reserv_db(user_id, event, guests, date, place, entry, start, user_nam
 
 def del_reserv_db(user_id, reserv_id):
     try:
-        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
-        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
         cur = conn.cursor()
         print("База данных подключена к SQLite")
         cur.execute('DELETE FROM user WHERE user_id="%s" AND id="%s";' % (user_id, reserv_id))
@@ -169,10 +257,28 @@ def del_reserv_db(user_id, reserv_id):
             print("Соединение с SQLite закрыто")
 
 
+def cancel_reserv(event_name):
+    try:
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('DELETE FROM user WHERE event="%s";' % (event_name))
+        conn.commit()
+        print("Данные удалены")
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при обновлении данных из sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
 def select_reserv_db(user_id):
     try:
-        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
-        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
         cur = conn.cursor()
         print("База данных подключена к SQLite")
         cur.execute('SELECT event, guests, date, place, entry, start, id FROM user WHERE user_id="%s"' % (user_id))
@@ -197,38 +303,10 @@ def select_reserv_db(user_id):
             print("Соединение с SQLite закрыто")
 
 
-def select_all_reserv_db():
-    try:
-        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
-        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
-        cur = conn.cursor()
-        print("База данных подключена к SQLite")
-        cur.execute('SELECT event, guests, date, place, entry, start, user_id FROM user')
-        print("Данные получены")
-        reservs = cur.fetchall()
-        cur.close()
-        reservs_list = []
-        for reserv in reservs:
-            reservs_list.append({'event': reserv[0],
-                               'guests': reserv[1],
-                               'date': reserv[2],
-                               'place': reserv[3],
-                               'entry': reserv[4],
-                               'start': reserv[5],
-                               'user_id': reserv[6]})
-        return reservs_list
-    except sqlite3.Error as error:
-        print("Ошибка при получении данных из sqlite", error.__class__, error)
-    finally:
-        if (conn):
-            conn.close()
-            print("Соединение с SQLite закрыто")
-
-
 def select_for_admin_reserv_db(event_name):
     try:
-        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
-        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
         cur = conn.cursor()
         print("База данных подключена к SQLite")
         cur.execute('SELECT event, guests, user_name, email FROM user WHERE event="%s"' % (event_name))
@@ -244,6 +322,172 @@ def select_for_admin_reserv_db(event_name):
         return reservs_list
     except sqlite3.Error as error:
         print("Ошибка при получении данных из sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def select_user_id_reserv(event_name):
+    try:
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('SELECT user_id FROM user WHERE event="%s"' % (event_name))
+        print("Данные получены")
+        reservs = cur.fetchall()
+        cur.close()
+        reservs_list = []
+        for reserv in reservs:
+            reservs_list.append(reserv[0])
+        return reservs_list
+    except sqlite3.Error as error:
+        print("Ошибка при получении данных из sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def edit_name_event(new_name, event_id):
+    try:
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('UPDATE event SET name = "%s" WHERE id = "%s"' % (new_name, event_id))
+        print("Изменения внесены")
+        conn.commit()
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при добавлении данных в sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def edit_date_event(new_date, event_id):
+    try:
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('UPDATE event SET date = "%s" WHERE id = "%s"' % (new_date, event_id))
+        print("Изменения внесены")
+        conn.commit()
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при добавлении данных в sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def edit_capacity_event(new_capacity, event_id):
+    try:
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('UPDATE event SET capacity="%s" WHERE id="%s"' % (new_capacity, event_id))
+        print("Изменения внесены")
+        conn.commit()
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при добавлении данных в sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def edit_description_event(new_description, event_id):
+    try:
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('UPDATE event SET description = "%s" WHERE id = "%s"' % (new_description, event_id))
+        print("Изменения внесены")
+        conn.commit()
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при добавлении данных в sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def edit_place_event(new_place, event_id):
+    try:
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('UPDATE event SET place = "%s" WHERE id = "%s"' % (new_place, event_id))
+        print("Изменения внесены")
+        conn.commit()
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при добавлении данных в sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def edit_entry_event(new_entry, event_id):
+    try:
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('UPDATE event SET entry = "%s" WHERE id = "%s"' % (new_entry, event_id))
+        print("Изменения внесены")
+        conn.commit()
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при добавлении данных в sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def edit_start_event(new_start, event_id):
+    try:
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('UPDATE event SET start = "%s" WHERE id = "%s"' % (new_start, event_id))
+        print("Изменения внесены")
+        conn.commit()
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при добавлении данных в sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def edit_price_event(new_price, event_id):
+    try:
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('UPDATE event SET price = "%s" WHERE id = "%s"' % (new_price, event_id))
+        print("Изменения внесены")
+        conn.commit()
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при добавлении данных в sqlite", error.__class__, error)
     finally:
         if (conn):
             conn.close()
