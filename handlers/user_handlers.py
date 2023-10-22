@@ -184,6 +184,7 @@ async def process_choose_command(message: Message, state: FSMContext):
                 if event['capacity'] == 0 or now_time(f'{event["date"]} {event["start"]}') < datetime.now():
                     if event_date(event["date"]) == date.today():
                         del_event_db(event["id"])
+                        cancel_reserv(event["name"])
                     continue
                 events_list.append(f'{num}) "{event["name"]}"\n{event["description"]}\n'
                                 f'Дата и время: {event["date"]} в {event["start"]}\n'
@@ -222,6 +223,7 @@ async def process_choose_command(callback: CallbackQuery, state: FSMContext):
                 if event['capacity'] == 0 or now_time(f'{event["date"]} {event["start"]}') < datetime.now():
                     if event_date(event["date"]) == date.today():
                         del_event_db(event["id"])
+                        cancel_reserv(event["name"])
                     continue
                 events_list.append(f'{num}) "{event["name"]}"\n{event["description"]}\n'
                                 f'Дата и время: {event["date"]} в {event["start"]}\n'
