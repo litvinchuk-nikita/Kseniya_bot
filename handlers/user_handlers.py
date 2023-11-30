@@ -12,7 +12,7 @@ from database.database import (insert_event_db, insert_reserv_db, del_event_db, 
                                edit_name_event, edit_date_event, edit_capacity_event, edit_description_event,
                                edit_place_event, edit_entry_event, edit_start_event, edit_price_event,
                                select_one_event, select_resrv_guests_and_name_event, select_one_event_id,
-                               select_user_id_reserv, cancel_reserv)
+                               select_user_id_reserv, cancel_reserv, edit_photo_event, edit_photo_booking)
 from keyboards.other_kb import create_menu_kb
 from lexicon.lexicon import LEXICON
 from filters.filters import IsAdmin
@@ -48,6 +48,7 @@ class FSMAdmin(StatesGroup):
     # перечисляя возможные состояния, в которых будет находиться
     # бот в разные моменты взаимодействия с пользователем
     add_event = State()       # Состояние добавления мероприятия
+    add_photo_event = State() # Состояние добаления афиши мероприятия
     cancel_event = State()       # Состояние отмены мероприятия
     show_reserv = State()     # Состояние просмотра брони на мероприятие
     edit_event = State()       # Состояние редактирования мероприятия
@@ -67,6 +68,7 @@ class FSMEditEvent(StatesGroup):
     edit_entry = State()         # Состояние изменения сбора гостей
     edit_start = State()         # Состояние изменения начала
     edit_price = State()         # Состояние изменения стоимости
+    edit_photo = State()         # Состояние изменения афиши
 
 
 # этот хэндлер будет срабатывать на команду "/start" -
@@ -122,7 +124,7 @@ async def process_cancel_command_state(message: Message, state: FSMContext):
 
 # Этот хэндлер будет срабатывать на команду "/cancel"
 # в состоянии добавления мероприятия
-@router.message(Command(commands='cancel'), StateFilter(FSMAdmin.add_event))
+@router.message(Command(commands='cancel'), StateFilter(FSMAdmin.add_event, FSMAdmin.add_photo_event))
 async def process_cancel_command_state(message: Message, state: FSMContext):
     await message.answer(
         text=f'Добавление мероприятия отменено.')
@@ -265,8 +267,9 @@ async def process_event_choosing(message: Message, state: FSMContext):
         place = event_db['place']
         entry = event_db['entry']
         start = event_db['start']
+        photo = event_db['photo']
         id = int(event_db['id'])
-        await state.update_data(name=name, date=date, place=place, entry=entry, start=start, id=id)
+        await state.update_data(name=name, date=date, place=place, entry=entry, start=start, id=id, photo=photo)
         # Устанавливаем состояние ожидания выбора количества гостей
         await state.set_state(FSMFillForm.guests_choosing)
     else:
@@ -328,7 +331,7 @@ async def process_guests_choosing(message: Message, state: FSMContext):
         # Добавляем в базу данных бронирование пользователя
         insert_reserv_db(str(message.from_user.id), db['name'], str(db["guests"]),
                          db['date'], db["place"], db['entry'], db['start'],
-                          str(message.from_user.full_name), str(message.from_user.username), str(message.text))
+                          str(message.from_user.full_name), str(message.from_user.username), str(message.text), db['photo'])
         # Завершаем машину состояний
         await state.clear()
         # Отправляем в чат сообщение о бронировании
@@ -639,15 +642,34 @@ async def process_add_event(message: Message, state: FSMContext):
             await message.answer('Нахождение ковычек в условиях входа не допустимо, исправьте условия входа')
             error += 1
         if error == 0:
-            insert_event_db(add_list[0], add_list[1], add_list[2], add_list[3],
-                            add_list[4], add_list[5], add_list[6], add_list[7])
-            await message.answer('Мероприятие добавлено')
-            # Завершаем машину состояний
-            await state.clear()
+            await message.answer(f'Отправьте картинку c афишей в ответ на это сообщение\n'
+                             f'Если вы хотите прервать процесс добавления мероприятия - '
+                             'отправьте команду /cancel')
+            await state.update_data(add_list=add_list)
+            # Устанавливаем состояние ожидания добаления афиши
+            await state.set_state(FSMAdmin.add_photo_event)
     else:
         await message.answer(f'Введенные данные о мероприятии не корректны\n'
                              f'Скорее всего вы забыли поставить ; в конце одного из разделов или поставили лишний знак ;\n'
                              f'Сравните еще раз введенные данные с шаблоном и после исправления отправьте данные о мероприятии\n\n'
+                             f'Если вы хотите прервать процесс добавления мероприятия - '
+                             'отправьте команду /cancel')
+
+
+# Этот хэндлер будет добавлять мероприятие
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMAdmin.add_photo_event))
+async def process_add_event(message: Message, state: FSMContext):
+    if message.photo:
+        db = await state.get_data()
+        add_list = db['add_list']
+        insert_event_db(add_list[0], add_list[1], add_list[2], add_list[3],
+                        add_list[4], add_list[5], add_list[6], add_list[7],
+                        message.photo[0].file_id)
+        await message.answer('Мероприятие добавлено')
+        # Завершаем машину состояний
+        await state.clear()
+    else:
+        await message.answer(f'Отправленное сообщение не является картинкой, отправте картинку афиши\n'
                              f'Если вы хотите прервать процесс добавления мероприятия - '
                              'отправьте команду /cancel')
 
@@ -762,7 +784,7 @@ async def process_edit_event(message: Message, state: FSMContext):
         event = select_one_event(id)
         await state.update_data(id=id, name=event["name"], date=event["date"], capacity=event["capacity"],
                                 description=event["description"], place=event["place"], entry=event["entry"],
-                                start=event["start"], price=event["price"])
+                                start=event["start"], price=event["price"], photo=event["photo"])
         await message.answer(text=f'Вы выбрали мероприятие: {event["name"]}\n\n'
                                 f'Отправьте номер раздела, в который хотите внести изменение:\n'
                                 f'1 - Название мероприятия\n'
@@ -772,7 +794,8 @@ async def process_edit_event(message: Message, state: FSMContext):
                                 f'5 - Место проведения и адрес\n'
                                 f'6 - Сбор гостей\n'
                                 f'7 - Начало\n'
-                                f'8 - Вход\n\n'
+                                f'8 - Вход\n'
+                                f'9 - Афиша\n\n'
                                 f'Чтобы прервать процесса изменения мероприятия, введите команду - /cancel')
         # Устанавливаем состояние ожидания выбора изменения
         await state.set_state(FSMEditEvent.choose_change)
@@ -793,7 +816,7 @@ async def del_event(message: Message):
 
 # Этот хэндлер будет выбирать раздел, в который необходимо внести изменения
 @router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMEditEvent.choose_change),
-lambda x: x.text.isdigit() and 1 <= int(x.text) <= 8)
+lambda x: x.text.isdigit() and 1 <= int(x.text) <= 9)
 async def process_edit_event(message: Message, state: FSMContext):
     event = await state.get_data()
     if int(message.text) == 1:
@@ -852,8 +875,22 @@ async def process_edit_event(message: Message, state: FSMContext):
                              parse_mode='HTML')
         # Устанавливаем состояние ожидания выбора изменения
         await state.set_state(FSMEditEvent.edit_price)
+    elif int(message.text) == 9:
+        photo=event["photo"]
+        if photo == None or photo == 'None':
+            await message.answer(text=f'На данный момент у мероприятия нет афишы\n\n'
+                             f'<i>В ОТВЕТ НА ЭТО СООБЩЕНИЕ ОТПРАВЬТЕ КАРТИНКУ С НОВОЙ АФИШЕЙ</i>❗️\n\n'
+                             f'Чтобы прервать процесса изменения мероприятия, введите команду - /cancel',
+                             parse_mode='HTML')
+        else:
+            await message.answer_photo(photo=event["photo"], caption=f'Выше представлена текущая афиша\n\n'
+                             f'<i>В ОТВЕТ НА ЭТО СООБЩЕНИЕ ОТПРАВЬТЕ КАРТИНКУ С НОВОЙ АФИШЕЙ</i>❗️\n\n'
+                             f'Чтобы прервать процесса изменения мероприятия, введите команду - /cancel',
+                             parse_mode='HTML')
+        # Устанавливаем состояние ожидания выбора изменения
+        await state.set_state(FSMEditEvent.edit_photo)
     else:
-        await message.answer(f'Введите номер раздела от 1 до 8\n\n'
+        await message.answer(f'Введите номер раздела от 1 до 9\n\n'
                              f'Если вы хотите прервать процесс редактирования - '
                              f'отправьте команду /cancel')
 
@@ -863,7 +900,7 @@ async def process_edit_event(message: Message, state: FSMContext):
 @router.message(StateFilter(FSMEditEvent.choose_change))
 async def edit_event(message: Message):
     await message.answer(f'Введены не корректные данные, чтобы выбрать раздел, '
-                         f'в который вы хотите внести изменения, введите номер раздела от 1 до 8\n\n'
+                         f'в который вы хотите внести изменения, введите номер раздела от 1 до 9\n\n'
                          f'Если вы хотите прервать процесс редактирования - отправьте команду\n/cancel')
 
 
@@ -994,3 +1031,21 @@ async def process_edit_price_event(message: Message, state: FSMContext):
         await message.answer('Условия входа изменены')
         # Завершаем машину состояний
         await state.clear()
+
+
+# Этот хэндлер будет изменять афишу
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMEditEvent.edit_photo))
+async def process_edit_photo_event(message: Message, state: FSMContext):
+    if message.photo:
+        db = await state.get_data()
+        new_photo = message.photo[0].file_id
+        event_id = db["id"]
+        event_name = db["name"]
+        edit_photo_event(new_photo, event_id)
+        edit_photo_booking(new_photo, event_name)
+        await message.answer('Афиша изменена')
+        # Завершаем машину состояний
+        await state.clear()
+    else:
+        await message.answer(f'Отправленное сообщение не является картинкой, отправте картинку афиши\n'
+                             f'Чтобы прервать процесса изменения мероприятия, введите команду - /cancel')

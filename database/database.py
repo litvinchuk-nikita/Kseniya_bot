@@ -1,15 +1,15 @@
 import sqlite3
 
 
-def insert_event_db(name, date, capacity, description, place, entry, start, price):
+def insert_event_db(name, date, capacity, description, place, entry, start, price, photo):
     try:
         conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
         # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
         cur = conn.cursor()
         print("База данных подключена к SQLite")
-        cur.execute('INSERT INTO event (name, date, capacity, description, place, entry, start, price)'
-                    ' VALUES ("%s", "%s", "%s", "%s", "%s", "%s", "%s", "%s")'
-                    % (name, date, capacity, description, place, entry, start, price))
+        cur.execute('INSERT INTO event (name, date, capacity, description, place, entry, start, price, photo)'
+                    ' VALUES ("%s", "%s", "%s", "%s", "%s", "%s", "%s", "%s", "%s")'
+                    % (name, date, capacity, description, place, entry, start, price, photo))
         print("Данные в таблицу добавлены")
         conn.commit()
         cur.close()
@@ -69,7 +69,8 @@ def select_one_event(id):
                 'place': event[0][5],
                 'entry': event[0][6],
                 'start': event[0][7],
-                'price': event[0][8]}
+                'price': event[0][8],
+                'photo': event[0][9]}
     except sqlite3.Error as error:
         print("Ошибка при получении данных из sqlite", error.__class__, error)
     finally:
@@ -216,15 +217,15 @@ def del_event_db(event_id):
             print("Соединение с SQLite закрыто")
 
 
-def insert_reserv_db(user_id, event, guests, date, place, entry, start, user_name, email, phone):
+def insert_reserv_db(user_id, event, guests, date, place, entry, start, user_name, email, phone, photo):
     try:
         conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
         # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
         cur = conn.cursor()
         print("База данных подключена к SQLite")
-        cur.execute('INSERT INTO user (user_id, event, guests, date, place, entry, start, user_name, email, phone)'
-                    ' VALUES ("%s", "%s", "%s", "%s", "%s", "%s", "%s", "%s", "%s", "%s")'
-                    % (user_id, event, str(guests), date, place, entry, start, user_name, email, phone))
+        cur.execute('INSERT INTO user (user_id, event, guests, date, place, entry, start, user_name, email, phone, photo)'
+                    ' VALUES ("%s", "%s", "%s", "%s", "%s", "%s", "%s", "%s", "%s", "%s", "%s")'
+                    % (user_id, event, str(guests), date, place, entry, start, user_name, email, phone, photo))
         print("Данные в таблицу добавлены")
         conn.commit()
         cur.close()
@@ -482,6 +483,42 @@ def edit_price_event(new_price, event_id):
         cur = conn.cursor()
         print("База данных подключена к SQLite")
         cur.execute('UPDATE event SET price = "%s" WHERE id = "%s"' % (new_price, event_id))
+        print("Изменения внесены")
+        conn.commit()
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при добавлении данных в sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def edit_photo_event(new_photo, event_id):
+    try:
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('UPDATE event SET photo = "%s" WHERE id = "%s"' % (new_photo, event_id))
+        print("Изменения внесены")
+        conn.commit()
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при добавлении данных в sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def edit_photo_booking(new_photo, event_name):
+    try:
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('UPDATE user SET photo = "%s" WHERE event = "%s"' % (new_photo, event_name))
         print("Изменения внесены")
         conn.commit()
         cur.close()
