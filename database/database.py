@@ -368,6 +368,24 @@ def edit_name_event(new_name, event_id):
             print("Соединение с SQLite закрыто")
 
 
+def edit_name_booking(new_name, old_name):
+    try:
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('UPDATE user SET event = "%s" WHERE event = "%s"' % (new_name, old_name))
+        print("Изменения внесены")
+        conn.commit()
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при добавлении данных в sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
 def edit_date_event(new_date, event_id):
     try:
         conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)

@@ -12,7 +12,8 @@ from database.database import (insert_event_db, insert_reserv_db, del_event_db, 
                                edit_name_event, edit_date_event, edit_capacity_event, edit_description_event,
                                edit_place_event, edit_entry_event, edit_start_event, edit_price_event,
                                select_one_event, select_resrv_guests_and_name_event, select_one_event_id,
-                               select_user_id_reserv, cancel_reserv, edit_photo_event, edit_photo_booking)
+                               select_user_id_reserv, cancel_reserv, edit_photo_event, edit_photo_booking,
+                               edit_name_booking)
 from keyboards.other_kb import create_menu_kb
 from lexicon.lexicon import LEXICON
 from filters.filters import IsAdmin
@@ -914,7 +915,9 @@ async def process_edit_name_event(message: Message, state: FSMContext):
     else:
         db = await state.get_data()
         id = db["id"]
+        old_name = db["name"]
         edit_name_event(new_name, id)
+        edit_name_booking(new_name, old_name)
         await message.answer('Название мероприятия изменено')
         # Завершаем машину состояний
         await state.clear()
