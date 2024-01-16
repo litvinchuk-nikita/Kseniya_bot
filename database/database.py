@@ -546,3 +546,43 @@ def edit_photo_booking(new_photo, event_name):
         if (conn):
             conn.close()
             print("Соединение с SQLite закрыто")
+
+
+def select_id_list():
+    try:
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('SELECT user_id FROM id_list')
+        print("Данные получены")
+        ids = cur.fetchall()
+        cur.close()
+        id_list = []
+        for id in ids:
+            id_list.append(id[0])
+        return id_list
+    except sqlite3.Error as error:
+        print("Ошибка при получении данных из sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def insert_id(user_id):
+    try:
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('INSERT INTO id_list (user_id) VALUES ("%s")' % (user_id))
+        print("Данные в таблицу добавлены")
+        conn.commit()
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при добавлении данных в sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
