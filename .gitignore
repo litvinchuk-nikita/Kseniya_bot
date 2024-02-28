@@ -4,4 +4,3 @@
 .vscode/
 venv/
 __pycache__/
-db.sql

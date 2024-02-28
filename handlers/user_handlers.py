@@ -241,7 +241,7 @@ async def process_choose_command(message: Message, state: FSMContext):
             await state.set_state(FSMFillForm.event_choosing)
             await state.update_data(id_list=id_list)
     else:
-        await message.answer("К сожалению на данный момент нету запланированных мероприятий, попробуйте проверить позже.")
+        await message.answer(f"Упс! Кажется, мест нет.\nСкорее всего все места на мероприятие забронированы, либо на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @netakie_team")
 
 
 # Этот хэндлер будет срабатывать на callback choose
@@ -286,7 +286,7 @@ async def process_choose_command(callback: CallbackQuery, state: FSMContext):
             await state.set_state(FSMFillForm.event_choosing)
             await state.update_data(id_list=id_list)
     else:
-        await callback.message.answer("К сожалению на данный момент нету запланированных мероприятий, попробуйте проверить позже.")
+        await callback.message.answer(f"Упс! Кажется, мест нет.\nСкорее всего все места на мероприятие забронированы, либо на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @netakie_team")
 
 
 # Этот хэндлер будет срабатывать, если введен корректный номер мероприятия
