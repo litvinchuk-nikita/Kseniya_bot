@@ -14,7 +14,8 @@ from database.database import (insert_event_db, insert_reserv_db, del_event_db, 
                                select_one_event, select_resrv_guests_and_name_event, select_one_event_id,
                                select_user_id_reserv, cancel_reserv, edit_photo_event, edit_photo_booking,
                                edit_name_booking, select_id_list, insert_id)
-from keyboards.other_kb import create_menu_kb
+from keyboards.other_kb import (create_menu_kb, review_kb, send_review_kb, answer_review_kb, cancel_review_kb,
+                                send_review_kb_2, cancel_answer_kb, send_answer_kb, last_review_kb)
 from lexicon.lexicon import LEXICON
 from filters.filters import IsAdmin
 from services.file_handling import now_time, check_date, check_time, event_date, check_phone
@@ -1220,3 +1221,218 @@ async def del_event(message: Message):
                  f'Чтобы изменить текст введите - 2\n\n'
                  f'Чтобы прервать отправку рассылки, введите команду - /cancel',
                  parse_mode='HTML')
+
+
+
+
+### Функция с отзывами
+
+
+class FSMReview(StatesGroup):
+    # Создаем экземпляры класса State, последовательно
+    # перечисляя возможные состояния, в которых будет находиться
+    # бот в разные моменты взаимодействия с пользователем
+    choose_review = State()                # Состояние выбора формата отзыва
+    write_review = State()                 # Состояние написания отзыва
+    write_name = State()                 # Состояние ввода имени
+    write_phone = State()                 # Состояние ввода номера телефона
+    write_answer = State()                 # Состояние ввода ответа на отзыв
+    choose_edit_send_review = State()      # Состояние выбора редактирования/отправки отзыва
+    choose_edit_send_answer = State()      # Состояние выбора редактирования/отправки ответа на отзыв
+
+
+# этот хэндлер будет срабатывать на нажатие кнопки "Оставить отзыв"
+# и отправлять пользователю сообщение с выбором вариантов отправки отзыва
+@router.callback_query(Text(text='review'), StateFilter(default_state))
+async def process_review_command(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    await callback.message.delete()
+    await state.set_state(FSMReview.choose_review)
+    await callback.message.answer('Как вы хотите отправить отзыв ?', reply_markup=review_kb(), parse_mode='HTML')
+    id = callback.from_user.id
+    await state.update_data(id=id)
+
+
+# этот хэндлер будет срабатывать на нажатие кнопки "Отменить отправку отзыва"
+# и отменять отправку отзыва и переводить пользователя в стандартное состояние
+@router.callback_query(Text(text='cancel_review'), StateFilter(FSMReview))
+async def process_cancelreview_command(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    await state.clear()
+    await callback.message.delete()
+    await callback.message.answer('Отправка отзыва отменена', parse_mode='HTML')
+
+
+# этот хэндлер будет срабатывать на нажатие кнопки "Отменить отправку ответа на отзыв"
+# и отменять отправку отзыва и переводить пользователя в стандартное состояние
+@router.callback_query(Text(text='cancel_answer'), StateFilter(FSMReview))
+async def process_cancelreview_command(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await callback.message.delete()
+    await callback.message.answer('Отправка ответа на отзыв отменена', parse_mode='HTML')
+
+
+# этот хэндлер будет срабатывать на нажатие кнопки "Анонимно"
+# отправлять пользователю сообщение  о вводе текста отзыва и
+# переводить в состояние написания отзыва
+@router.callback_query(Text(text='anonim'), StateFilter(FSMReview.choose_review))
+async def process_anonim_command(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    await callback.message.delete()
+    await callback.message.answer(f'Введите текст отзыва, указав мероприятие, его дату и заведение, в котором оно проходило.\nПожалуйста, опишите, как можно подробнее предмет вашего обращения.\nБлагодаря этому нам удастся как можно быстрее разрешить этот вопрос.\nНу а если вы просто хотите похвалить нас и сказать какие мы классные, то спасибо большое! :)', parse_mode='HTML', reply_markup=cancel_review_kb())
+    await state.set_state(FSMReview.write_review)
+
+
+# этот хэндлер будет срабатывать на нажатие кнопки "Не анонимно"
+# отправлять пользователю сообщение  о вводе текста отзыва и
+# переводить в состояние написания отзыва
+@router.callback_query(Text(text='not_anonim'), StateFilter(FSMReview.choose_review))
+async def process_not_anonim_command(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    await callback.message.delete()
+    await callback.message.answer('Введите ваше имя', parse_mode='HTML', reply_markup=cancel_review_kb())
+    await state.set_state(FSMReview.write_name)
+
+
+# этот хэндлер будет срабатывать на имени и
+# отправлять сообщение об отправке номера телефона
+@router.message(StateFilter(FSMReview.write_name))
+async def process_write_name_command(message: Message, state: FSMContext, bot: Bot):
+    name = message.text
+    await state.update_data(name=name)
+    db = await state.get_data()
+    if 'text' in db.keys():
+        await message.answer(text=f'Так будет выглядеть ваш отзыв:\n\n{db["name"]} оставил(а) отзыв\nТелефон для связи: {db["phone"]}\n\n{db["text"]}', reply_markup=send_review_kb_2(), parse_mode='HTML')
+        await state.set_state(FSMReview.choose_edit_send_review)
+    else:
+        await message.answer(text=f'Введите ваш номер телефона в формате: 89997776644', reply_markup=cancel_review_kb(), parse_mode='HTML')
+        await state.set_state(FSMReview.write_phone)
+
+
+# этот хэндлер будет срабатывать на отправку имени и
+# отправлять сообщение об отправке номера телефона
+@router.message(StateFilter(FSMReview.write_phone))
+async def process_write_name_command(message: Message, state: FSMContext, bot: Bot):
+    phone = message.text
+    if check_phone(phone):
+        await state.update_data(phone=phone)
+        db = await state.get_data()
+        if 'text' in db.keys():
+            await message.answer(text=f'Так будет выглядеть ваш отзыв:\n\n{db["name"]} оставил(а) отзыв\nТелефон для связи: {db["phone"]}\n\n{db["text"]}', reply_markup=send_review_kb_2(), parse_mode='HTML')
+            await state.set_state(FSMReview.choose_edit_send_review)
+        else:
+            await message.answer(f'Введите текст отзыва, указав мероприятие, его дату и заведение, в котором оно проходило.\nПожалуйста, опишите, как можно подробнее предмет вашего обращения.\nБлагодаря этому нам удастся как можно быстрее разрешить этот вопрос.\nНу а если вы просто хотите похвалить нас и сказать какие мы классные, то спасибо большое! :)', parse_mode='HTML', reply_markup=cancel_review_kb())
+            await state.set_state(FSMReview.write_review)
+    else:
+        await message.answer('Номер телефона введен не верно, введите номер в формате: 89997776644', parse_mode='HTML', reply_markup=cancel_review_kb())
+
+
+# этот хэндлер будет срабатывать на отправку текста отзыва и
+# отправлять его пользователю с двумя кнопками подтвердить отправку/изменить текст
+@router.message(StateFilter(FSMReview.write_review))
+async def process_anonim_command(message: Message, state: FSMContext, bot: Bot):
+    text_review = message.text
+    await state.update_data(text=text_review)
+    db = await state.get_data()
+    if 'phone' in db.keys():
+        await message.answer(text=f'Так будет выглядеть ваш отзыв:\n\n{db["name"]} оставил(а) отзыв\nТелефон для связи: {db["phone"]}\n\n{db["text"]}', reply_markup=send_review_kb_2(), parse_mode='HTML')
+        await state.set_state(FSMReview.choose_edit_send_review)
+    else:
+        await message.answer(text=f'Так будет выглядеть ваш отзыв:\n\nАнонимный пользователь оставил отзыв:\n{db["text"]}', reply_markup=send_review_kb(), parse_mode='HTML')
+        await state.set_state(FSMReview.choose_edit_send_review)
+
+
+# этот хэндлер будет срабатывать на нажатие кнопки "Редактировать отзыв"
+# отправлять пользователю сообщение о вводе текста отзыва и
+# переводить в состояние написания отзыва
+@router.callback_query(Text(text='edit_review'), StateFilter(FSMReview.choose_edit_send_review))
+async def process_anonim_command(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    await callback.message.delete()
+    await callback.message.answer('Напишите новый текст отзыва', parse_mode='HTML', reply_markup=cancel_review_kb())
+    await state.set_state(FSMReview.write_review)
+
+
+# этот хэндлер будет срабатывать на нажатие кнопки "Редактировать имя"
+# отправлять пользователю сообщение о вводе текста имени и
+# переводить в состояние написания имени
+@router.callback_query(Text(text='edit_name'), StateFilter(FSMReview.choose_edit_send_review))
+async def process_anonim_command(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    await callback.message.delete()
+    await callback.message.answer('Введите новое имя', parse_mode='HTML', reply_markup=cancel_review_kb())
+    await state.set_state(FSMReview.write_name)
+
+
+# этот хэндлер будет срабатывать на нажатие кнопки "Редактировать номер телефона"
+# отправлять пользователю сообщение о вводе номера телефона и
+# переводить в состояние написания номера телефона
+@router.callback_query(Text(text='edit_phone'), StateFilter(FSMReview.choose_edit_send_review))
+async def process_anonim_command(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    await callback.message.delete()
+    await callback.message.answer('Введите новый номер телефона', parse_mode='HTML', reply_markup=cancel_review_kb())
+    await state.set_state(FSMReview.write_phone)
+
+
+# этот хэндлер будет срабатывать на нажатие кнопки "Отправить отзыв"
+# отправлять пользователю сообщение о том что отзыв отправлен
+@router.callback_query(Text(text='send_review'), StateFilter(FSMReview.choose_edit_send_review))
+async def process_anonim_command(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    db = await state.get_data()
+    if 'phone' in db.keys():
+        await bot.send_message(chat_id=6469407067, text=f'{db["name"]} оставил(а) вам отзыв\nТелефон для связи: {db["phone"]}\nID: "{db["id"]}"\n\nТекст отзыва:\n{db["text"]}', reply_markup=answer_review_kb())
+    else:
+        await bot.send_message(chat_id=6469407067, text=f'Анонимный пользователь оставил вам отзыв\nID: "{db["id"]}"\n\nТекст отзыва:\n{db["text"]}', reply_markup=answer_review_kb())
+    await callback.message.delete()
+    await callback.message.answer(f'Спасибо за обратную связь.\nБлагодаря вам качество наших мероприятий и сервис улучшаются!', parse_mode='HTML', reply_markup=last_review_kb())
+    await state.clear()
+
+
+
+# этот хэндлер будет срабатывать на нажатие кнопки "Ответить на отзыв"
+# отправлять пользователю сообщение о том что отзыв отправлен
+@router.callback_query(Text(text='answer_review'), StateFilter(default_state))
+async def process_anonim_command(callback: CallbackQuery, state: FSMContext):
+    id = callback.message.text.split('"')[1]
+    await callback.message.answer('Введите ваш ответ на отзыв', parse_mode='HTML', reply_markup=cancel_answer_kb())
+    await state.set_state(FSMReview.write_answer)
+    await state.update_data(id=id)
+
+
+# этот хэндлер будет срабатывать на отправку текста ответа на отзывв и
+# отправлять его вам с двумя кнопками подтвердить отправку/изменить текст
+@router.message(StateFilter(FSMReview.write_answer))
+async def process_anonim_command(message: Message, state: FSMContext, bot: Bot):
+    text = message.text
+    await state.update_data(text=text)
+    await message.answer(text=f'Так будет выглядеть ваш ответ на отзыв:\n\n{text}', reply_markup=send_answer_kb(), parse_mode='HTML')
+    await state.set_state(FSMReview.choose_edit_send_answer)
+
+
+# этот хэндлер будет срабатывать на нажатие кнопки "Редактировать ответ на отзыв"
+# отправлять пользователю сообщение о вводе текста отзыва и
+# переводить в состояние написания отзыва
+@router.callback_query(Text(text='edit_answer'), StateFilter(FSMReview.choose_edit_send_answer))
+async def process_anonim_command(callback: CallbackQuery, state: FSMContext):
+    await callback.message.delete()
+    await callback.message.answer('Напишите новый текст ответа на отзыв', parse_mode='HTML', reply_markup=cancel_answer_kb())
+    await state.set_state(FSMReview.write_answer)
+
+
+# этот хэндлер будет срабатывать на нажатие кнопки "Отправить ответ на отзыв"
+# отправлять пользователю сообщение о том что отзыв отправлен
+@router.callback_query(Text(text='send_answer'), StateFilter(FSMReview.choose_edit_send_answer))
+async def process_anonim_command(callback: CallbackQuery, state: FSMContext):
+    db = await state.get_data()
+    await bot.send_message(chat_id=db["id"], text=db["text"])
+    await callback.message.delete()
+    await callback.message.answer('Ответ на отзыв отправлен', parse_mode='HTML')
+    await state.clear()
+
+
+# этот хэндлер будет срабатывать при нажатии на кнопку "Вернуться в меню" -
+# и отправлять ему стартовое меню
+@router.callback_query(Text(text='menu'), StateFilter(default_state))
+async def process_anonim_command(callback: CallbackQuery, state: FSMContext):
+    await callback.message.delete()
+    text = f"{LEXICON['/start']}"
+    photo = URLInputFile(url=LEXICON['menu_photo'])
+    await callback.message.answer_photo(
+        photo=photo,
+        caption=text,
+        reply_markup=create_menu_kb(),
+        parse_mode='HTML')

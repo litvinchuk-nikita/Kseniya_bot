@@ -550,8 +550,8 @@ def edit_photo_booking(new_photo, event_name):
 
 def select_id_list():
     try:
-        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
-        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
         cur = conn.cursor()
         print("База данных подключена к SQLite")
         cur.execute('SELECT user_id FROM id_list')
@@ -568,6 +568,10 @@ def select_id_list():
         if (conn):
             conn.close()
             print("Соединение с SQLite закрыто")
+
+# id = select_id_list()
+# id = set(id)
+# print(id, len(id))
 
 
 def insert_id(user_id):
