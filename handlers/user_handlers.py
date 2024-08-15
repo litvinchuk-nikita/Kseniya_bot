@@ -383,7 +383,7 @@ async def process_guests_choosing(message: Message, state: FSMContext):
                  f'<i>Обратите внимание: количество столиков и мест в зале не всегда эквивалентно количеству броней.</i>'
                  f'<i> Для того, чтобы наверняка сидеть вместе со своими друзьями, пожалуйста, приходите ко времени сбора гостей.</i>'
                  f'<i> Иногда мы подсаживаем зрителей друг к другу, чтобы сделать рассадку более театральной.</i>'
-                 f'<i> Благодарим за понимание.\n\nЕсли вдруг у тебя остались вопросы, ты можешь написать в личные сообщения tg: @anyashukel</i>\n\n'
+                 f'<i> Благодарим за понимание.\n\nЕсли вдруг у тебя остались вопросы, ты можешь написать в личные сообщения tg: @violetta_kvn_standup</i>\n\n'
                  f'Чтобы отменить бронь введите команду\n/cancelreservation',
                  parse_mode='HTML')
     else:
@@ -489,21 +489,30 @@ async def process_show_reservation(message: Message, state: FSMContext):
                                     f'тел. {booking["phone"]}')
                 num += 1
                 reserved_seats += int(booking["guests"])
-            if len(reserv_list) < 35:
+            if len(reserv_list) < 30:
                 bookings = f'\n\n'.join(booking_list)
                 await message.answer(text=f"{bookings}\n\nВсего забронировано мест: {reserved_seats}\nСвободно мест: {capacity}\n\nЧтобы отменить бронь введите команду\n/cancelreservation")
-            elif len(reserv_list) > 35 and len(reserv_list) < 70:
-                bookings_1 = f'\n\n'.join(booking_list[:35])
-                bookings_2 = f'\n\n'.join(booking_list[35:])
+            elif len(reserv_list) > 30 and len(reserv_list) < 60:
+                bookings_1 = f'\n\n'.join(booking_list[:30])
+                bookings_2 = f'\n\n'.join(booking_list[30:])
                 await message.answer(text=f"{bookings_1}")
                 await message.answer(text=f'{bookings_2}\n\nВсего забронировано мест: {reserved_seats}\nСвободно мест: {capacity}\n\nЧтобы отменить бронь введите команду\n/cancelreservation')
-            else:
-                bookings_1 = f'\n\n'.join(booking_list[:35])
-                bookings_2 = f'\n\n'.join(booking_list[35:70])
-                bookings_3 = f'\n\n'.join(booking_list[70:])
+            elif len(reserv_list) > 60 and len(reserv_list) < 90:
+                bookings_1 = f'\n\n'.join(booking_list[:30])
+                bookings_2 = f'\n\n'.join(booking_list[30:60])
+                bookings_3 = f'\n\n'.join(booking_list[60:90])
                 await message.answer(text=f"{bookings_1}")
                 await message.answer(text=f"{bookings_2}")
                 await message.answer(text=f'{bookings_3}\n\nВсего забронировано мест: {reserved_seats}\nСвободно мест: {capacity}\n\nЧтобы отменить бронь введите команду\n/cancelreservation')
+            else:
+                bookings_1 = f'\n\n'.join(booking_list[:30])
+                bookings_2 = f'\n\n'.join(booking_list[30:60])
+                bookings_3 = f'\n\n'.join(booking_list[60:90])
+                bookings_4 = f'\n\n'.join(booking_list[90:])
+                await message.answer(text=f"{bookings_1}")
+                await message.answer(text=f"{bookings_2}")
+                await message.answer(text=f"{bookings_3}")
+                await message.answer(text=f'{bookings_4}\n\nВсего забронировано мест: {reserved_seats}\nСвободно мест: {capacity}\n\nЧтобы отменить бронь введите команду\n/cancelreservation')
             # Завершаем машину состояний
             await state.clear()
         else:
