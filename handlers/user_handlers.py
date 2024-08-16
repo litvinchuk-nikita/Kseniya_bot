@@ -15,7 +15,7 @@ from database.database import (insert_event_db, insert_reserv_db, del_event_db, 
                                select_user_id_reserv, cancel_reserv, edit_photo_event, edit_photo_booking,
                                edit_name_booking, select_id_list, insert_id)
 from keyboards.other_kb import (create_menu_kb, review_kb, send_review_kb, answer_review_kb, cancel_review_kb,
-                                send_review_kb_2, cancel_answer_kb, send_answer_kb, last_review_kb)
+                                send_review_kb_2, cancel_answer_kb, send_answer_kb, last_review_kb, newsletter_kb)
 from lexicon.lexicon import LEXICON
 from filters.filters import IsAdmin
 from services.file_handling import now_time, check_date, check_time, event_date, check_phone
@@ -77,10 +77,14 @@ class FSMNewsletter(StatesGroup):
     # Создаем экземпляры класса State, последовательно
     # перечисляя возможные состояния, в которых будет находиться
     # бот в разные моменты взаимодействия с пользователем
+    choose_nl = State()       # Состояние выбора варианты рассылки
     choose_event = State()       # Состояние выбора мероприятия
     choose_text = State()        # Состояние выбора текста рассылки
     create_new_text = State()    # Состояние создания нового текста рассылки
     send_newsletter = State()    # Состояние отправки рассылки
+    create_text = State()    # Состояние создания текста рассылки
+    add_photo = State() # Состояние добавления фото рассылки
+    confirmation_nl = State() # Состояние подтверждения рассылки
 
 
 # этот хэндлер будет срабатывать на команду "/start" -
@@ -427,14 +431,70 @@ async def process_showreservation_command(message: Message, state: FSMContext):
             await message.answer(
                 text=f'У вас пока что нет активной брони\n\n')
     else:
-        name_list = select_event_name_db()
-        names = f', '.join(name_list)
-        # Устанавливаем состояние ожидания ввода названия мероприятия
-        await state.set_state(FSMAdmin.show_reserv)
-        await message.answer(
-                text=f'Введите название мероприятия, на которое хотите посмотреть брони\n\n'
-                     f'Доступные мероприятия: {names}\n\n'
-                     f'Чтобы выйти из процесса просмотра броней, введите команду - /cancel')
+        events_list = []
+        id_list = []
+        num = 1
+        event_db = select_event_db()
+        if len(event_db) != 0:
+            for event in event_db:
+                try:
+                    events_list.append(f'{num}) "{event["name"]}"\n'
+                                    f'<b>КОД МЕРОПРИЯТИЯ 👉🏻 {event["id"]}</b>')
+                    id_list.append(event["id"])
+                except:
+                    print("При проверке мероприятия произошла ошибка")
+                num += 1
+            if len(events_list) == 0:
+                await message.answer("К сожалению на данный момент нету запланированных мероприятий, попробуйте проверить позже.")
+            else:
+                events = f'\n\n'.join(events_list)
+                text = f"<b>ВЫБЕРИТЕ МЕРОПРИЯТИЕ</b>\n\n{events}\n\n<i>ЧТОБЫ ВЫБРАТЬ МЕРОПРИЯТИЕ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\nЧтобы выйти из процесса просмотра броней, введите команду - /cancel"
+                await message.answer(text=text, parse_mode='HTML')
+                # Устанавливаем состояние ожидания ввода названия мероприятия
+                await state.set_state(FSMAdmin.show_reserv)
+                await state.update_data(id_list=id_list)
+
+# Этот хэндлер будет срабатывать на callback choose
+# и переводить бота в состояние ожидания выбора мероприятия
+@router.callback_query(Text(text='choose'), StateFilter(default_state))
+async def process_choose_command(callback: CallbackQuery, state: FSMContext):
+    id_list_newsletter = select_id_list()
+    if str(callback.from_user.id) not in id_list_newsletter:
+        user_id = callback.from_user.id
+        insert_id(user_id)
+    else:
+        print('Такой id уже добавлен')
+    events_list = []
+    id_list = []
+    num = 1
+    event_db = select_event_db()
+    if len(event_db) != 0:
+        for event in event_db:
+            try:
+                if event['capacity'] == 0 or now_time(f'{event["date"]} {event["start"]}') < datetime.now():
+                    if event_date(event["date"]) <= date.today():
+                        del_event_db(event["id"])
+                        cancel_reserv(event["name"])
+                    continue
+                events_list.append(f'{num}) "{event["name"]}"\n{event["description"]}\n'
+                                f'Дата и время: {event["date"]} в {event["start"]}\n'
+                                f'Сбор гостей в {event["entry"]}\n'
+                                f'Вход: {event["price"]}\n'
+                                f'Адрес: {event["place"]}\n'
+                                f'<b>КОД МЕРОПРИЯТИЯ 👉🏻 {event["id"]}</b>')
+                id_list.append(event["id"])
+            except:
+                print("При проверке мероприятия произошла ошибка")
+            num += 1
+        if len(events_list) == 0:
+            await callback.message.answer("К сожалению на данный момент нету запланированных мероприятий, попробуйте проверить позже.")
+        else:
+            events = f'\n\n'.join(events_list)
+            text = f"<b>ВЫБЕРИТЕ МЕРОПРИЯТИЕ</b>\n\n{events}\n\n<i>ЧТОБЫ ВЫБРАТЬ МЕРОПРИЯТИЕ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\nЧтобы прервать процесс бронирования введите команду - /cancel"
+            await callback.message.answer(text=text, parse_mode='HTML')
+            # Устанавливаем состояние ожидания выбора мероприятия
+            await state.set_state(FSMFillForm.event_choosing)
+            await state.update_data(id_list=id_list)
 
 
 # Этот хэндлер будет срабатывать на отправку callback showreservation
@@ -461,24 +521,41 @@ async def process_showreservation_command(callback: CallbackQuery, state: FSMCon
             await callback.message.answer(
                 text=f'У вас пока что нет активной брони\n')
     else:
-        name_list = select_event_name_db()
-        names = f', '.join(name_list)
-        # Устанавливаем состояние ожидания ввода названия мероприятия
-        await state.set_state(FSMAdmin.show_reserv)
-        await callback.message.answer(
-                text=f'Введите название мероприятия, на которое хотите посмотреть брони\n\n'
-                     f'Доступные мероприятия: {names}\n\n'
-                     f'Чтобы выйти из процесса просмотра броней, введите команду - /cancel')
+        events_list = []
+        id_list = []
+        num = 1
+        event_db = select_event_db()
+        if len(event_db) != 0:
+            for event in event_db:
+                try:
+                    events_list.append(f'{num}) "{event["name"]}"\n'
+                                    f'<b>КОД МЕРОПРИЯТИЯ 👉🏻 {event["id"]}</b>')
+                    id_list.append(event["id"])
+                except:
+                    print("При проверке мероприятия произошла ошибка")
+                num += 1
+            if len(events_list) == 0:
+                await callback.message.answer("К сожалению на данный момент нету запланированных мероприятий, попробуйте проверить позже.")
+            else:
+                events = f'\n\n'.join(events_list)
+                text = f"<b>ВЫБЕРИТЕ МЕРОПРИЯТИЕ</b>\n\n{events}\n\n<i>ЧТОБЫ ВЫБРАТЬ МЕРОПРИЯТИЕ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\nЧтобы выйти из процесса просмотра броней, введите команду - /cancel"
+                await callback.message.answer(text=text, parse_mode='HTML')
+                # Устанавливаем состояние ожидания ввода названия мероприятия
+                await state.set_state(FSMAdmin.show_reserv)
+                await state.update_data(id_list=id_list)
 
 
 # Этот хэндлер будет срабатывать, если введено корректное название мероприятия
-@router.message(StateFilter(FSMAdmin.show_reserv))
-async def process_show_reservation(message: Message, state: FSMContext):
-    if message.text in select_event_name_db():
+@router.message(StateFilter(FSMAdmin.show_reserv), lambda x: x.text.isdigit() and 1 <= int(x.text))
+async def process_choose_show_reserv(message: Message, state: FSMContext):
+    db = await state.get_data()
+    id_list = db['id_list']
+    if int(message.text) in id_list:
         # Получаем список бронирований
-        reserv_list = select_for_admin_reserv_db(message.text)
+        event = select_one_event(int(message.text))
+        reserv_list = select_for_admin_reserv_db(event['name'])
         if len(reserv_list) != 0:
-            capacity = select_capacity_event_db(message.text)
+            capacity = select_capacity_event_db((event['name']))
             booking_list = []
             reserved_seats = 0
             num = 1
@@ -516,12 +593,22 @@ async def process_show_reservation(message: Message, state: FSMContext):
             # Завершаем машину состояний
             await state.clear()
         else:
-            await message.answer(f'Брони на "{message.text}" пока что нет.')
+            await message.answer(f'Брони на "{event["name"]}" пока что нет.')
             # Завершаем машину состояний
             await state.clear()
     else:
-        await message.answer(f'Такого мероприятия не найдено\n\n'
+        await message.answer(f'Такого мероприятия не найдено, введите корректный код мероприятия\n\n'
                              'Чтобы выйти из процесса просмотра броней, введите команду - /cancel')
+
+# Этот хэндлер будет срабатывать, если во время
+# выбора мероприятия будет введено что-то некорректное
+@router.message(StateFilter(FSMAdmin.show_reserv))
+async def warning_not_event(message: Message):
+    await message.answer(
+        text=f'Вы находитесь в режиме просмотра бронирований\n\n'
+             f'<i>ДЛЯ ВЫБОРА МЕРОПРИЯТИЯ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\n'
+             'Если вы хотите прервать просмотр бронирований - '
+             'отправьте команду /cancel', parse_mode='HTML')
 
 
 # Этот хэндлер будет срабатывать на отправку команды /cancelreservation
@@ -556,28 +643,46 @@ async def process_cancelreservation_command(message: Message, state: FSMContext)
             await message.answer(
                 text=f'У вас пока что нет активной брони')
     else:
-        name_list = select_event_name_db()
-        names = f', '.join(name_list)
-        if len(name_list) != 0:
-            # Устанавливаем состояние ожидания ввода названия мероприятия
-            await state.set_state(FSMCancelReserv.show_reserv_for_cancel)
-            await message.answer(
-                    text=f'Введите название мероприятия, на которое хотите отменить бронь\n\n'
-                        f'Доступные мероприятия: {names}\n\n'
-                        f'Чтобы выйти из процесса отмены броней, введите команду - /cancel')
+        events_list = []
+        id_list = []
+        num = 1
+        event_db = select_event_db()
+        if len(event_db) != 0:
+            for event in event_db:
+                try:
+                    events_list.append(f'{num}) "{event["name"]}"\n'
+                                    f'<b>КОД МЕРОПРИЯТИЯ 👉🏻 {event["id"]}</b>')
+                    id_list.append(event["id"])
+                except:
+                    print("При проверке мероприятия произошла ошибка")
+                num += 1
+            if len(events_list) == 0:
+                await message.answer("К сожалению на данный момент нету запланированных мероприятий, попробуйте проверить позже.")
+            else:
+                events = f'\n\n'.join(events_list)
+                text = f"<b>ВЫБЕРИТЕ МЕРОПРИЯТИЕ</b>\n\n{events}\n\n<i>ЧТОБЫ ВЫБРАТЬ МЕРОПРИЯТИЕ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\nЧтобы выйти из процесса отмены броней, введите команду - /cancel"
+                await message.answer(text=text, parse_mode='HTML')
+                # Устанавливаем состояние ожидания ввода названия мероприятия
+                await state.set_state(FSMCancelReserv.show_reserv_for_cancel)
+                print(id_list)
+                await state.update_data(id_list=id_list)
         else:
             # Если нету активных мероприятий, то оповещвем об этом администратора
-            await message.answer('Активных мероприятий пока что нету')
+            await message.answer('Активных мероприятий пока что нет')
 
 
 # Этот хэндлер будет срабатывать, если введено корректное название мероприятия
-@router.message(StateFilter(FSMCancelReserv.show_reserv_for_cancel))
+@router.message(StateFilter(FSMCancelReserv.show_reserv_for_cancel), lambda x: x.text.isdigit() and 1 <= int(x.text))
 async def process_show_reservation_for_cancel(message: Message, state: FSMContext):
-    if message.text in select_event_name_db():
+    db = await state.get_data()
+    event_id_list = db['id_list']
+    print(event_id_list)
+    if int(message.text) in event_id_list:
         # Получаем список бронирований
-        reserv_list = select_for_admin_reserv_db(message.text)
+        event = select_one_event(int(message.text))
+        reserv_list = select_for_admin_reserv_db(event["name"])
         if len(reserv_list) != 0:
-            capacity = select_capacity_event_db(message.text)
+            capacity = select_capacity_event_db(event["name"])
             booking_list = []
             id_list = []
             reserved_seats = 0
@@ -593,17 +698,34 @@ async def process_show_reservation_for_cancel(message: Message, state: FSMContex
                 id_list.append(booking["id"])
             bookings = f'\n\n'.join(booking_list)
             await state.update_data(id_list=id_list)
-            await message.answer(text=f"{bookings}\n\nВсего забронировано мест: {reserved_seats}\nСвободно мест: {capacity}\n\nЕсли вы хотите прервать процесс отмены брони - отправьте команду /cancel'", parse_mode='HTML')
+            if len(booking_list) <= 25:
+                await message.answer(text=f"{bookings}\n\nВсего забронировано мест: {reserved_seats}\nСвободно мест: {capacity}\n\nЕсли вы хотите прервать процесс отмены брони - отправьте команду /cancel'", parse_mode='HTML')
+            else:
+                text_1 = f'\n\n'.join(booking_list[:26])
+                text_2 = f'\n\n'.join(booking_list[26:])
+                await message.answer(text=text_1, parse_mode='HTML')
+                await message.answer(text=f"{text_2}\n\nВсего забронировано мест: {reserved_seats}\nСвободно мест: {capacity}\n\nЕсли вы хотите прервать процесс отмены брони - отправьте команду /cancel'", parse_mode='HTML')
             # Устанавливаем состояние ожидания ввода кода бронирования
             await state.set_state(FSMCancelReserv.cancel_reservation)
         else:
-            await message.answer(f'Брони на "{message.text}" пока что нет')
+            await message.answer(f'Брони на "{event["name"]}" пока что нет')
             # Завершаем машину состояний
             await state.clear()
     else:
-        await message.answer(f'Такого мероприятия не найдено, введите название мероприятия еще раз\n\n'
+        await message.answer(f'Такого мероприятия не найдено, введите корректный код мероприятия\n\n'
                              'Если вы хотите прервать процесс отмены брони - '
                              'отправьте команду /cancel')
+
+
+# Этот хэндлер будет срабатывать, если во время
+# выбора мероприятия будет введено что-то некорректное
+@router.message(StateFilter(FSMCancelReserv.show_reserv_for_cancel))
+async def warning_not_event(message: Message):
+    await message.answer(
+        text=f'Вы находитесь в режиме отмены бронирований\n\n'
+             f'<i>ДЛЯ ВЫБОРА МЕРОПРИЯТИЯ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\n'
+             'Если вы хотите прервать отмену бронирований - '
+             'отправьте команду /cancel', parse_mode='HTML')
 
 
 # Этот хэндлер будет срабатывать, если введен корректный номер бронирования
@@ -707,7 +829,7 @@ async def process_add_event(message: Message, state: FSMContext):
 
 # Этот хэндлер будет добавлять мероприятие
 @router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMAdmin.add_photo_event))
-async def process_add_event(message: Message, state: FSMContext):
+async def process_add_event(message: Message, state: FSMContext, bot: Bot):
     if message.photo:
         db = await state.get_data()
         add_list = db['add_list']
@@ -715,6 +837,17 @@ async def process_add_event(message: Message, state: FSMContext):
                         add_list[4], add_list[5], add_list[6], add_list[7],
                         message.photo[0].file_id)
         await message.answer('Мероприятие добавлено')
+        # Отправляем рассылку на новое мероприятие
+        id_list = select_id_list()
+        text = f'{add_list[0]} - {add_list[1]} уже доступно для бронирования мест.\n{add_list[3]} - {add_list[7]}.\n\nДля бронирования мест введите команду - /choose'
+        for id in id_list:
+                try:
+                    await bot.send_photo(chat_id=id,
+                                        photo=message.photo[0].file_id,
+                                        caption=text)
+                except:
+                    print(f'Произошла ошибка при отправке рассылки по id - {id}')
+        await message.answer('Мероприятие добавлено, рассылка отправлена')
         # Завершаем машину состояний
         await state.clear()
     else:
@@ -1103,25 +1236,150 @@ async def process_edit_photo_event(message: Message, state: FSMContext):
 
 
 # Этот хэндлер будет срабатывать на отправку команды /sendnewsletter
-# и отправлять в чат доступные для рассылки мероприятия
+# и отправлять в чат доступные варианты для рассылки мероприятия
 @router.message(IsAdmin(config.tg_bot.admin_ids), Command(commands='sendnewsletter'), StateFilter(default_state))
 async def process_sendnewsletter_command(message: Message, state: FSMContext):
-    name_list = select_event_name_db()
-    names = f', '.join(name_list)
-    # Устанавливаем состояние ожидания ввода названия мероприятия
-    await state.set_state(FSMNewsletter.choose_event)
+    await message.answer('Как вы хотите отправить рассылку?', reply_markup=newsletter_kb())
+    await state.set_state(FSMNewsletter.choose_nl)
+
+
+# этот хэндлер будет срабатывать на нажатие кнопки "Отменить отправку рассылки"
+# и отменять отправку отзыва и переводить пользователя в стандартное состояние
+@router.callback_query(Text(text='cancel_nl'), StateFilter(FSMNewsletter.choose_nl))
+async def process_cancelnl_command(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await callback.message.delete()
+    await callback.message.answer('Отправка рассылки отменена', parse_mode='HTML')
+
+
+
+# этот хэндлер будет срабатывать на нажатие кнопки "Выбрать мероприятие для рассылки"
+# и отправлять в чат доступные мероприятия для рассылки
+@router.callback_query(Text(text='nl_event'), StateFilter(FSMNewsletter.choose_nl))
+async def process_nlevent_command(callback: CallbackQuery, state: FSMContext):
+    events_list = []
+    id_list = []
+    num = 1
+    event_db = select_event_db()
+    if len(event_db) != 0:
+        for event in event_db:
+            try:
+                events_list.append(f'{num}) "{event["name"]}"\n'
+                                f'<b>КОД МЕРОПРИЯТИЯ 👉🏻 {event["id"]}</b>')
+                id_list.append(event["id"])
+            except:
+                print("При проверке мероприятия произошла ошибка")
+            num += 1
+        if len(events_list) == 0:
+            await callback.message.answer("К сожалению на данный момент нету запланированных мероприятий, попробуйте проверить позже.")
+        else:
+            events = f'\n\n'.join(events_list)
+            text = f"<b>ВЫБЕРИТЕ МЕРОПРИЯТИЕ</b>\n\n{events}\n\n<i>ЧТОБЫ ВЫБРАТЬ МЕРОПРИЯТИЕ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\nЧтобы прервать отправку рассылки, введите команду - /cancel"
+            await callback.message.answer(text=text, parse_mode='HTML')
+            # Устанавливаем состояние ожидания ввода названия мероприятия
+            await state.set_state(FSMNewsletter.choose_event)
+            await state.update_data(id_list=id_list)
+
+
+# этот хэндлер будет срабатывать на нажатие кнопки "Отправить независимую рассылку"
+@router.callback_query(Text(text='nl_not_event'), StateFilter(FSMNewsletter.choose_nl))
+async def process_nlevent_command(callback: CallbackQuery, state: FSMContext):
+    await callback.message.answer(text='Введите текст рассылки', parse_mode='HTML')
+    # Устанавливаем состояние ввода текста
+    await state.set_state(FSMNewsletter.create_text)
+
+# Этот хэндлер будет подтверждать текст рассылки
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMNewsletter.create_text))
+async def process_send_newsletter(message: Message, state: FSMContext):
+    await state.update_data(text = message.text)
+    db = await state.get_data()
+    if 'photo' in db.keys():
+        await state.set_state(FSMNewsletter.confirmation_nl)
+        await message.answer_photo(photo=db["photo"], caption=db["text"])
+        await message.answer(
+                text=f'Выше представлен текст рассылки\n\n'
+                    f'Чтобы отправить текущий текст\nвведите - 1\n'
+                    f'Чтобы изменить текст введите - 2\n\n'
+                    f'Чтобы изменить фото введите - 3\n\n'
+                    f'Чтобы прервать отправку рассылки, введите команду - /cancel',
+                    parse_mode='HTML')
+    else:
+        await state.set_state(FSMNewsletter.add_photo)
+        await message.answer('Добавьте фото рассылки')
+
+
+# Этот хэндлер будет добавлять фото рассылки
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMNewsletter.add_photo))
+async def process_add_photo_nl(message: Message, state: FSMContext):
+    if message.photo:
+        photo = message.photo[0].file_id
+        await state.update_data(photo=photo)
+        await state.set_state(FSMNewsletter.confirmation_nl)
+        db = await state.get_data()
+        await message.answer_photo(photo=db["photo"], caption=db["text"])
+        await message.answer(
+                text=f'Выше представлен текст рассылки\n\n'
+                    f'Чтобы отправить текущий текст\nвведите - 1\n'
+                    f'Чтобы изменить текст введите - 2\n\n'
+                    f'Чтобы изменить фото введите - 3\n\n'
+                    f'Чтобы прервать отправку рассылки, введите команду - /cancel',
+                    parse_mode='HTML')
+    else:
+        await message.answer(f'Отправленное сообщение не является картинкой, отправте картинку еще раз\n'
+                             f'Чтобы прервать отправку рассылки, введите команду - /cancel')
+
+
+# Этот хэндлер будет подтверждать текст рассылки
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMNewsletter.confirmation_nl),
+lambda x: x.text.isdigit() and 1 <= int(x.text) <= 3)
+async def process_send_newsletter_not_event(message: Message, state: FSMContext, bot: Bot):
+    if int(message.text) == 1:
+        db = await state.get_data()
+        id_list = select_id_list()
+        # await bot.send_photo(chat_id=1799099725,
+        #                     photo=db["photo"],
+        #                     caption=db["text"])
+        for id in id_list:
+            try:
+                await bot.send_photo(chat_id=id,
+                                    photo=db["photo"],
+                                    caption=db["text"])
+            except:
+                print(f'Произошла ошибка при отправке рассылки по id - {id}')
+        await state.clear()
+        await message.answer(f'Рассылка выполнена')
+    elif int(message.text) == 2:
+        # Устанавливаем состояние ожидания ввода названия мероприятия
+        await state.set_state(FSMNewsletter.create_text)
+        await message.answer(f'Введите новый текст рассылки\n\n'
+                             'Чтобы прервать отправку рассылки, введите команду - /cancel')
+    elif int(message.text) == 3:
+        # Устанавливаем состояние добавления фото
+        await state.set_state(FSMNewsletter.add_photo)
+        await message.answer(f'Добавьте новое фото рассылки\n\n'
+                             'Чтобы прервать отправку рассылки, введите команду - /cancel')
+
+
+# Этот хэндлер будет срабатывать, если во время
+# подтверждения независимой рассылки введено что-то некорректное
+@router.message(StateFilter(FSMNewsletter.confirmation_nl))
+async def del_event(message: Message):
     await message.answer(
-            text=f'Введите название мероприятия, на которое хотите сделать рассылку\n\n'
-                 f'Доступные мероприятия: {names}\n\n'
-                 f'Чтобы прервать отправку рассылки, введите команду - /cancel')
+            text=f'Введенно не коректное число\n\nЧтобы отправить текущий текст\nвведите - 1\n'
+                 f'Чтобы изменить текст введите - 2\n\n'
+                 f'Чтобы изменить фото введите - 3\n\n'
+                 f'Чтобы прервать отправку рассылки, введите команду - /cancel',
+                 parse_mode='HTML')
 
 
 # Этот хэндлер будет срабатывать, если введено корректное название мероприятия
-@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMNewsletter.choose_event))
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMNewsletter.choose_event),
+lambda x: x.text.isdigit() and 1 <= int(x.text))
 async def process_choose_text_newsletter(message: Message, state: FSMContext):
-    if message.text in select_event_name_db():
-        id = select_one_event_id(message.text)
-        event = select_one_event(id)
+    db = await state.get_data()
+    id_list = db['id_list']
+    if int(message.text) in id_list:
+        event = select_one_event(int(message.text))
         newsletter = f'Приглашаем {event["date"]} на "{event["name"]}" в {event["place"]}\n\nНовые и лучшие шутки и атмосфера веселья ждут тебя!\n\nВход: {event["price"]}\nДля бронирования мест введите команду - /choose'
         await message.answer_photo(photo=event["photo"],
                                    caption=newsletter)
@@ -1135,8 +1393,19 @@ async def process_choose_text_newsletter(message: Message, state: FSMContext):
         # Устанавливаем состояние ожидания ввода названия мероприятия
         await state.set_state(FSMNewsletter.choose_text)
     else:
-        await message.answer(f'Такого мероприятия не найдено\n\n'
+        await message.answer(f'Введен не верный код мероприятия, попробуйте еще раз\n\n'
                              'Чтобы прервать отправку рассылки, введите команду - /cancel')
+
+
+# Этот хэндлер будет срабатывать, если во время
+# выбора мероприятия будет введено что-то некорректное
+@router.message(StateFilter(FSMNewsletter.choose_event))
+async def warning_not_event(message: Message):
+    await message.answer(
+        text=f'Вы находитесь в режиме отправки рассылки\n\n'
+             f'<i>ДЛЯ ВЫБОРА МЕРОПРИЯТИЯ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\n'
+             'Если вы хотите прервать отправку рассылки - '
+             'отправьте команду /cancel', parse_mode='HTML')
 
 
 # Этот хэндлер будет корректировать текст рассылки или оставлять типовой

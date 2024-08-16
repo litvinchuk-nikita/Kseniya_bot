@@ -103,3 +103,16 @@ def last_review_kb() -> InlineKeyboardMarkup:
     kb_builder.add(button_1, button_2)
     kb_builder.adjust(1, 1)
     return kb_builder.as_markup()
+
+
+def newsletter_kb() -> InlineKeyboardMarkup:
+    button_1: InlineKeyboardButton = InlineKeyboardButton(
+        text='Выбрать мероприятие для рассылки', callback_data='nl_event')
+    button_2: InlineKeyboardButton = InlineKeyboardButton(
+        text='Отправить независимую рассылку', callback_data='nl_not_event')
+    button_3: InlineKeyboardButton = InlineKeyboardButton(
+        text='Отменить отправку рассылки', callback_data='cancel_nl')
+    kb_builder: InlineKeyboardBuilder = InlineKeyboardBuilder()
+    kb_builder.add(button_1, button_2, button_3)
+    kb_builder.adjust(1, 1, 1)
+    return kb_builder.as_markup()
