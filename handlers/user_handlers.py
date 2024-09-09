@@ -1714,3 +1714,10 @@ async def process_anonim_command(callback: CallbackQuery, state: FSMContext):
         caption=text,
         reply_markup=create_menu_kb(),
         parse_mode='HTML')
+
+
+# этот хэндлер будет срабатывать на команду "/users"
+# и отправлять админу сообщение с количеством пользователем в бд бота
+@router.message(Command(commands='users'), IsAdmin)
+async def process_help_command(message: Message):
+        await message.answer(text=f'По состоянию на {date.today()} в базе данных бота - 5091 пользователь', parse_mode='HTML')
