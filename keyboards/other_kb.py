@@ -118,3 +118,11 @@ def newsletter_kb() -> InlineKeyboardMarkup:
     kb_builder.add(button_1, button_2, button_3)
     kb_builder.adjust(1, 1, 1)
     return kb_builder.as_markup()
+
+
+def draw_kb() -> InlineKeyboardMarkup:
+    draw_button: InlineKeyboardButton = InlineKeyboardButton(
+        text='Участвовать в розыгрыше', callback_data='draw')
+    kb_builder: InlineKeyboardBuilder = InlineKeyboardBuilder()
+    kb_builder.add(draw_button)
+    return kb_builder.as_markup()

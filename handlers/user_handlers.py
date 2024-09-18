@@ -17,7 +17,8 @@ from database.database import (insert_event_db, insert_reserv_db, del_event_db, 
                                select_one_draw, insert_partaker_draw, select_one_partaker_id,
                                select_partaker_draw)
 from keyboards.other_kb import (create_menu_kb, review_kb, send_review_kb, answer_review_kb, cancel_review_kb,
-                                send_review_kb_2, cancel_answer_kb, send_answer_kb, last_review_kb, newsletter_kb)
+                                send_review_kb_2, cancel_answer_kb, send_answer_kb, last_review_kb, newsletter_kb,
+                                draw_kb)
 from lexicon.lexicon import LEXICON
 from filters.filters import IsAdmin
 from services.file_handling import now_time, check_date, check_time, event_date, check_phone, draw_datetime
@@ -878,7 +879,7 @@ async def process_add_event(message: Message, state: FSMContext, bot: Bot):
                                         caption=text)
                 except:
                     print(f'Произошла ошибка при отправке рассылки по id - {id}')
-        await message.answer('Мероприятие добавлено, рассылка отправлена')
+        await message.answer('Рассылка отправлена')
         # Завершаем машину состояний
         await state.clear()
     else:
@@ -1751,10 +1752,11 @@ async def process_anonim_command(callback: CallbackQuery, state: FSMContext):
 # и отправлять админу сообщение с количеством пользователем в бд бота
 @router.message(Command(commands='users'), IsAdmin)
 async def process_help_command(message: Message):
-    id_list = select_id_list()
-    id_count = set(id)
-    # await message.answer(text=f'По состоянию на {date.today()} в базе данных бота - 5091 пользователь', parse_mode='HTML')
-    await message.answer(text=f'По состоянию на {date.today()} в базе данных бота - {id_count} пользователь', parse_mode='HTML')
+    if str(message.from_user.id) == '1799099725' or str(message.from_user.id) == '6469407067':
+        id_list = select_id_list()
+        id_count = len(set(id_list))
+        # await message.answer(text=f'По состоянию на {date.today()} в базе данных бота - 5091 пользователь', parse_mode='HTML')
+        await message.answer(text=f'По состоянию на {date.today()} в базе данных бота - {id_count} пользователь', parse_mode='HTML')
 
 
 # Этот хэндлер будет срабатывать на callback draw
@@ -1885,6 +1887,18 @@ async def process_add_draw(message: Message, state: FSMContext, bot: Bot):
         add_list = db['add_list']
         insert_draw(add_list[0], add_list[1], add_list[2], message.photo[0].file_id)
         await message.answer('Розыгрыш добавлен')
+        # Отправляем рассылку на новый розыгрыш
+        id_list = select_id_list()
+        text = f'Участвуй в новом розыгрыше:\n{add_list[0]}\nОкончание регистрации:\n{add_list[1]} {add_list[2]}\nРозыгрыш проходит в боте, для участия кликай кнопку ниже\nУсловия: подписка на наш канал @locostandup'
+        for id in id_list:
+                try:
+                    await bot.send_photo(chat_id=id,
+                                        photo=message.photo[0].file_id,
+                                        caption=text,
+                                        reply_markup=draw_kb())
+                except:
+                    print(f'Произошла ошибка при отправке рассылки по id - {id}')
+        await message.answer('Рассылка отправлена')
         # Завершаем машину состояний
         await state.clear()
     else:
