@@ -11,9 +11,11 @@ def create_menu_kb() -> InlineKeyboardMarkup:
         text='Возможности бота', callback_data='help')
     review_button: InlineKeyboardButton = InlineKeyboardButton(
         text='Оставить отзыв', callback_data='review')
+    draw_button: InlineKeyboardButton = InlineKeyboardButton(
+        text='Участвовать в розыгрыше', callback_data='draw')
     kb_builder: InlineKeyboardBuilder = InlineKeyboardBuilder()
-    kb_builder.add(choose_button, showreserv_button, cancelreserv_button, review_button)
-    kb_builder.adjust(1, 1, 1, 1)
+    kb_builder.add(choose_button, showreserv_button, draw_button, cancelreserv_button, review_button)
+    kb_builder.adjust(1, 1, 1, 1, 1)
     return kb_builder.as_markup()
 
 

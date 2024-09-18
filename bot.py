@@ -5,7 +5,7 @@ from aiogram import Bot, Dispatcher
 from config_data.config import Config, load_config
 from aiogram.fsm.storage.redis import RedisStorage, Redis
 from handlers import user_handlers, other_handlers
-from apsched.apsched import send_message_cron
+from apsched.apsched import send_message_cron, send_message_interval
 from keyboards.main_menu import set_main_menu
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from datetime import datetime, timedelta
@@ -42,6 +42,8 @@ async def main():
     scheduler = AsyncIOScheduler(timezone='Europe/Kaliningrad')
     scheduler.add_job(send_message_cron, trigger='cron', hour=12,
                     minute=00, start_date=datetime.now(), kwargs={'bot': bot})
+
+    scheduler.add_job(send_message_interval, trigger='interval', minutes=15, start_date=datetime.now(), kwargs={'bot': bot})
 
     # настраиваем главное меню бота
     await set_main_menu(bot)

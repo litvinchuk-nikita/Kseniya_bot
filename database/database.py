@@ -50,6 +50,7 @@ def select_event_db():
             conn.close()
             print("Соединение с SQLite закрыто")
 
+# print(select_event_db())
 
 def select_one_event(id):
     try:
@@ -78,6 +79,7 @@ def select_one_event(id):
             conn.close()
             print("Соединение с SQLite закрыто")
 
+# print(select_one_event(93))
 
 def select_event_id():
     try:
@@ -236,6 +238,9 @@ def insert_reserv_db(user_id, event, guests, date, place, entry, start, user_nam
             conn.close()
             print("Соединение с SQLite закрыто")
 
+# insert_reserv_db('1328733978', 'STAND UP ВЕЧЕР КОМЕДИИ', '2', '20.09.2024', 'Премьер министр, ул. Карла Маркса 18', '19:00', '20:00', 'ViolettaVavilova', 'violetta_kvn_standup', '89097998101', 'AgACAgIAAxkBAAEBVehm3vuGPJNpMK56S3cba1NoiAObZAACmuAxG7pB-UoO6r8zO0cxOAEAAwIAA3MAAzYE')
+# insert_reserv_db('1328733978', 'STAND UP ВЕЧЕР КОМЕДИИ', '2', '20.09.2024', 'Премьер министр, ул. Карла Маркса 18', '19:00', '20:00', 'ViolettaVavilova', 'violetta_kvn_standup', '89097998101', 'AgACAgIAAxkBAAEBVehm3vuGPJNpMK56S3cba1NoiAObZAACmuAxG7pB-UoO6r8zO0cxOAEAAwIAA3MAAzYE')
+
 
 def del_reserv_db(user_id, reserv_id):
     try:
@@ -326,6 +331,9 @@ def select_for_admin_reserv_db(event_name):
         if (conn):
             conn.close()
             print("Соединение с SQLite закрыто")
+
+# print(select_for_admin_reserv_db('STAND UP ВЕЧЕР КОМЕДИИ'))
+# print(select_for_admin_reserv_db('STAND UP ОТКРЫТЫЙ МИКРОФОН'))
 
 
 def select_user_id_reserv(event_name):
@@ -420,6 +428,8 @@ def edit_capacity_event(new_capacity, event_id):
         if (conn):
             conn.close()
             print("Соединение с SQLite закрыто")
+
+# edit_capacity_event('56', 93)
 
 
 def edit_description_event(new_description, event_id):
@@ -586,6 +596,162 @@ def insert_id(user_id):
         cur.close()
     except sqlite3.Error as error:
         print("Ошибка при добавлении данных в sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def insert_draw(name, date, time, photo):
+    try:
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('INSERT INTO draws (name, date, time, photo)'
+                    ' VALUES ("%s", "%s", "%s", "%s")'
+                    % (name, date, time, photo))
+        print("Данные в таблицу добавлены")
+        conn.commit()
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при добавлении данных в sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def select_draws():
+    try:
+        draw_list = []
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('SELECT name, date, time, photo, id FROM draws')
+        print("Данные получены")
+        draws = cur.fetchall()
+        cur.close()
+        for draw in draws:
+            draw_list.append({'name': draw[0],
+                               'date': draw[1],
+                               'time': draw[2],
+                               'photo': draw[3],
+                               'id': draw[4]})
+        return draw_list
+    except sqlite3.Error as error:
+        print("Ошибка при получении данных из sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def select_one_draw(id):
+    try:
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('SELECT * FROM draws WHERE id="%s"' % (id))
+        print("Данные получены")
+        draw = cur.fetchall()
+        cur.close()
+        return {'id': draw[0][0],
+                'name': draw[0][1],
+                'date': draw[0][2],
+                'time': draw[0][3],
+                'photo': draw[0][4]}
+    except sqlite3.Error as error:
+        print("Ошибка при получении данных из sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+# print(select_one_draw(1))
+
+
+def insert_partaker_draw(user_id, draw_id, email, username):
+    try:
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('INSERT INTO partaker_draw (user_id, draw_id, email, username)'
+                    ' VALUES ("%s", "%s", "%s", "%s")'
+                    % (user_id, draw_id, email, username))
+        print("Данные в таблицу добавлены")
+        conn.commit()
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при добавлении данных в sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def select_one_partaker_id(user_id, draw_id):
+    try:
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('SELECT id FROM partaker_draw WHERE user_id="%s" AND draw_id="%s"' % (user_id, draw_id))
+        print("Данные получены")
+        draw = cur.fetchall()
+        cur.close()
+        return {'id': draw[0][0]}
+    except sqlite3.Error as error:
+        print("Ошибка при получении данных из sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+# select_one_partaker_id(1799099725, 3)
+
+
+def select_partaker_draw(draw_id):
+    try:
+        draw_list = []
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('SELECT user_id FROM partaker_draw WHERE draw_id="%s"' % (draw_id))
+        print("Данные получены")
+        draws = cur.fetchall()
+        cur.close()
+        for draw in draws:
+            draw_list.append(draw[0])
+        return draw_list
+    except sqlite3.Error as error:
+        print("Ошибка при получении данных из sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def select_partaker_draw_id(draw_id):
+    try:
+        draw_list = []
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('SELECT id FROM partaker_draw WHERE draw_id="%s"' % (draw_id))
+        print("Данные получены")
+        draws = cur.fetchall()
+        cur.close()
+        for draw in draws:
+            draw_list.append(draw[0])
+        return draw_list
+    except sqlite3.Error as error:
+        print("Ошибка при получении данных из sqlite", error.__class__, error)
     finally:
         if (conn):
             conn.close()

@@ -13,12 +13,14 @@ from database.database import (insert_event_db, insert_reserv_db, del_event_db, 
                                edit_place_event, edit_entry_event, edit_start_event, edit_price_event,
                                select_one_event, select_resrv_guests_and_name_event, select_one_event_id,
                                select_user_id_reserv, cancel_reserv, edit_photo_event, edit_photo_booking,
-                               edit_name_booking, select_id_list, insert_id)
+                               edit_name_booking, select_id_list, insert_id, insert_draw, select_draws,
+                               select_one_draw, insert_partaker_draw, select_one_partaker_id,
+                               select_partaker_draw)
 from keyboards.other_kb import (create_menu_kb, review_kb, send_review_kb, answer_review_kb, cancel_review_kb,
                                 send_review_kb_2, cancel_answer_kb, send_answer_kb, last_review_kb, newsletter_kb)
 from lexicon.lexicon import LEXICON
 from filters.filters import IsAdmin
-from services.file_handling import now_time, check_date, check_time, event_date, check_phone
+from services.file_handling import now_time, check_date, check_time, event_date, check_phone, draw_datetime
 
 router: Router = Router()
 
@@ -85,6 +87,15 @@ class FSMNewsletter(StatesGroup):
     create_text = State()    # Состояние создания текста рассылки
     add_photo = State() # Состояние добавления фото рассылки
     confirmation_nl = State() # Состояние подтверждения рассылки
+
+
+class FSMDraw(StatesGroup):
+    # Создаем экземпляры класса State, последовательно
+    # перечисляя возможные состояния, в которых будет находиться
+    # бот в разные моменты взаимодействия с пользователем
+    draw_choosing = State()        # Состояние выбора розыгрыша
+    add_draw = State()        # Состояние добавления розыгрыша
+    add_photo_draw = State()        # Состояние добавления афиши розыгрыша
 
 
 # этот хэндлер будет срабатывать на команду "/start" -
@@ -204,6 +215,26 @@ async def process_cancel_command_state(message: Message, state: FSMContext):
     await state.clear()
 
 
+# Этот хэндлер будет срабатывать на команду "/cancel"
+# в состоянии выбора розыгрыша
+@router.message(Command(commands='cancel'), StateFilter(FSMDraw.draw_choosing))
+async def process_cancel_command_state(message: Message, state: FSMContext):
+    await message.answer(
+        text=f'Выбор розыгрыша прерван')
+    # Сбрасываем состояние и очищаем данные, полученные внутри состояний
+    await state.clear()
+
+
+# Этот хэндлер будет срабатывать на команду "/cancel"
+# в состоянии добывления розыгрыша
+@router.message(Command(commands='cancel'), StateFilter(FSMDraw.add_draw, FSMDraw.add_photo_draw))
+async def process_cancel_command_state(message: Message, state: FSMContext):
+    await message.answer(
+        text=f'Добавление розыгрыша прервано')
+    # Сбрасываем состояние и очищаем данные, полученные внутри состояний
+    await state.clear()
+
+
 # Этот хэндлер будет срабатывать на команду /choose
 # и переводить бота в состояние ожидания выбора мероприятия
 @router.message(Command(commands='choose'), StateFilter(default_state))
@@ -237,7 +268,7 @@ async def process_choose_command(message: Message, state: FSMContext):
                 print("При проверке мероприятия произошла ошибка")
             num += 1
         if len(events_list) == 0:
-            await message.answer("К сожалению на данный момент нету запланированных мероприятий, попробуйте проверить позже.")
+            await message.answer("Упс! Кажется, мест нет.\nСкорее всего все места на мероприятие забронированы, либо на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
         else:
             events = f'\n\n'.join(events_list)
             text = f"<b>ВЫБЕРИТЕ МЕРОПРИЯТИЕ</b>\n\n{events}\n\n<i>ЧТОБЫ ВЫБРАТЬ МЕРОПРИЯТИЕ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\nЧтобы прервать процесс бронирования введите команду - /cancel"
@@ -246,7 +277,7 @@ async def process_choose_command(message: Message, state: FSMContext):
             await state.set_state(FSMFillForm.event_choosing)
             await state.update_data(id_list=id_list)
     else:
-        await message.answer(f"Упс! Кажется, мест нет.\nСкорее всего все места на мероприятие забронированы, либо на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @netakie_team")
+        await message.answer(f"Упс! Кажется, мест нет.\nСкорее всего все места на мероприятие забронированы, либо на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
 
 
 # Этот хэндлер будет срабатывать на callback choose
@@ -282,7 +313,7 @@ async def process_choose_command(callback: CallbackQuery, state: FSMContext):
                 print("При проверке мероприятия произошла ошибка")
             num += 1
         if len(events_list) == 0:
-            await callback.message.answer("К сожалению на данный момент нету запланированных мероприятий, попробуйте проверить позже.")
+            await callback.message.answer("Упс! Кажется, мест нет.\nСкорее всего все места на мероприятие забронированы, либо на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
         else:
             events = f'\n\n'.join(events_list)
             text = f"<b>ВЫБЕРИТЕ МЕРОПРИЯТИЕ</b>\n\n{events}\n\n<i>ЧТОБЫ ВЫБРАТЬ МЕРОПРИЯТИЕ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\nЧтобы прервать процесс бронирования введите команду - /cancel"
@@ -291,7 +322,7 @@ async def process_choose_command(callback: CallbackQuery, state: FSMContext):
             await state.set_state(FSMFillForm.event_choosing)
             await state.update_data(id_list=id_list)
     else:
-        await callback.message.answer(f"Упс! Кажется, мест нет.\nСкорее всего все места на мероприятие забронированы, либо на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @netakie_team")
+        await callback.message.answer(f"Упс! Кажется, мест нет.\nСкорее всего все места на мероприятие забронированы, либо на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
 
 
 # Этот хэндлер будет срабатывать, если введен корректный номер мероприятия
@@ -445,7 +476,7 @@ async def process_showreservation_command(message: Message, state: FSMContext):
                     print("При проверке мероприятия произошла ошибка")
                 num += 1
             if len(events_list) == 0:
-                await message.answer("К сожалению на данный момент нету запланированных мероприятий, попробуйте проверить позже.")
+                await message.answer("Упс! На данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
             else:
                 events = f'\n\n'.join(events_list)
                 text = f"<b>ВЫБЕРИТЕ МЕРОПРИЯТИЕ</b>\n\n{events}\n\n<i>ЧТОБЫ ВЫБРАТЬ МЕРОПРИЯТИЕ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\nЧтобы выйти из процесса просмотра броней, введите команду - /cancel"
@@ -487,7 +518,7 @@ async def process_choose_command(callback: CallbackQuery, state: FSMContext):
                 print("При проверке мероприятия произошла ошибка")
             num += 1
         if len(events_list) == 0:
-            await callback.message.answer("К сожалению на данный момент нету запланированных мероприятий, попробуйте проверить позже.")
+            await callback.message.answer("Упс! На данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
         else:
             events = f'\n\n'.join(events_list)
             text = f"<b>ВЫБЕРИТЕ МЕРОПРИЯТИЕ</b>\n\n{events}\n\n<i>ЧТОБЫ ВЫБРАТЬ МЕРОПРИЯТИЕ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\nЧтобы прервать процесс бронирования введите команду - /cancel"
@@ -535,7 +566,7 @@ async def process_showreservation_command(callback: CallbackQuery, state: FSMCon
                     print("При проверке мероприятия произошла ошибка")
                 num += 1
             if len(events_list) == 0:
-                await callback.message.answer("К сожалению на данный момент нету запланированных мероприятий, попробуйте проверить позже.")
+                await callback.message.answer("Упс! На данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
             else:
                 events = f'\n\n'.join(events_list)
                 text = f"<b>ВЫБЕРИТЕ МЕРОПРИЯТИЕ</b>\n\n{events}\n\n<i>ЧТОБЫ ВЫБРАТЬ МЕРОПРИЯТИЕ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\nЧтобы выйти из процесса просмотра броней, введите команду - /cancel"
@@ -657,7 +688,7 @@ async def process_cancelreservation_command(message: Message, state: FSMContext)
                     print("При проверке мероприятия произошла ошибка")
                 num += 1
             if len(events_list) == 0:
-                await message.answer("К сожалению на данный момент нету запланированных мероприятий, попробуйте проверить позже.")
+                await message.answer("Упс! На данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
             else:
                 events = f'\n\n'.join(events_list)
                 text = f"<b>ВЫБЕРИТЕ МЕРОПРИЯТИЕ</b>\n\n{events}\n\n<i>ЧТОБЫ ВЫБРАТЬ МЕРОПРИЯТИЕ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\nЧтобы выйти из процесса отмены броней, введите команду - /cancel"
@@ -899,7 +930,7 @@ async def process_add_event(message: Message, state: FSMContext, bot: Bot):
         if len(user_id_list) != 0:
             for id in user_id_list:
                 try:
-                    text = f'Дорогой зритель, вынуждены сообщить, что мероприятие "{event["name"]}" И {event["date"]} отменено по техническим причинам.\nПриносим свои извинения и ждем на наших следующих мероприятиях.'
+                    text = f'Дорогой зритель, вынуждены сообщить, что мероприятие "{event["name"]}" {event["date"]} отменено по техническим причинам.\nПриносим свои извинения и ждем на наших следующих мероприятиях.'
                     await bot.send_message(int(id), text=text)
                 except:
                     print('Произошла ошибка при отправке сообщения')
@@ -1271,7 +1302,7 @@ async def process_nlevent_command(callback: CallbackQuery, state: FSMContext):
                 print("При проверке мероприятия произошла ошибка")
             num += 1
         if len(events_list) == 0:
-            await callback.message.answer("К сожалению на данный момент нету запланированных мероприятий, попробуйте проверить позже.")
+            await callback.message.answer("К сожалению на данный момент нет запланированных мероприятий, попробуйте проверить позже.")
         else:
             events = f'\n\n'.join(events_list)
             text = f"<b>ВЫБЕРИТЕ МЕРОПРИЯТИЕ</b>\n\n{events}\n\n<i>ЧТОБЫ ВЫБРАТЬ МЕРОПРИЯТИЕ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\nЧтобы прервать отправку рассылки, введите команду - /cancel"
@@ -1720,4 +1751,143 @@ async def process_anonim_command(callback: CallbackQuery, state: FSMContext):
 # и отправлять админу сообщение с количеством пользователем в бд бота
 @router.message(Command(commands='users'), IsAdmin)
 async def process_help_command(message: Message):
-        await message.answer(text=f'По состоянию на {date.today()} в базе данных бота - 5091 пользователь', parse_mode='HTML')
+    id_list = select_id_list()
+    id_count = set(id)
+    # await message.answer(text=f'По состоянию на {date.today()} в базе данных бота - 5091 пользователь', parse_mode='HTML')
+    await message.answer(text=f'По состоянию на {date.today()} в базе данных бота - {id_count} пользователь', parse_mode='HTML')
+
+
+# Этот хэндлер будет срабатывать на callback draw
+# и переводить бота в состояние выбора розыгрыша
+@router.callback_query(Text(text='draw'), StateFilter(default_state))
+async def process_draw_command(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    id_list_newsletter = select_id_list()
+    if str(callback.from_user.id) not in id_list_newsletter:
+        user_id = callback.from_user.id
+        insert_id(user_id)
+    else:
+        print('Такой id уже добавлен')
+    # ФУНКЦИЯ ПРОВЕРКИ ПОДПИСКИ НА КАНАЛ
+    user_channel_status = await bot.get_chat_member(chat_id='@locostandup', user_id=callback.from_user.id)
+    if user_channel_status.status != 'left':
+        draw_list = []
+        id_list = []
+        num = 1
+        draw_db = select_draws()
+        if len(draw_db) != 0:
+            for draw in draw_db:
+                try:
+                    if now_time(f'{draw["date"]} {draw["time"]}') < datetime.now():
+                        # if event_date(draw["date"]) <= date.today():
+                        #     del_draw(draw["id"])
+                        continue
+                    draw_end = draw_datetime(f'{draw["date"]} {draw["time"]}')
+                    draw_list.append(f'{num}) "{draw["name"]}"\n'
+                                    f'Дата и время окончания регистрации: {draw["date"]} в {draw["time"]}\n'
+                                    f'Розыгрыш будет проведен:\n{draw_end}\n'
+                                    f'<b>КОД РОЗЫГРЫША👉🏻 {draw["id"]}</b>')
+                    id_list.append(draw["id"])
+                except:
+                    print("При проверке розыгрыша произошла ошибка")
+                num += 1
+            if len(draw_list) == 0:
+                await callback.message.answer(f"К сожалению на данный момент нет запланированных розыгрышей.\nСледите за анонсами и новостями в нашем канале @locostandup")
+            else:
+                draws = f'\n\n'.join(draw_list)
+                text = f"<b>ВЫБЕРИТЕ РОЗЫГРЫШ</b>\n\n{draws}\n\n<i>ЧТОБЫ ВЫБРАТЬ РОЗЫГРЫШ ВВЕДИТЕ КОД РОЗЫГРЫША</i>❗️\n\nЧтобы прервать процесс выбора розыгрыша введите команду - /cancel"
+                await callback.message.answer(text=text, parse_mode='HTML')
+                # Устанавливаем состояние ожидания выбора мероприятия
+                await state.set_state(FSMDraw.draw_choosing)
+                await state.update_data(id_list=id_list)
+        else:
+            await callback.message.answer(f"К сожалению на данный момент нет запланированных розыгрышей.\nСледите за анонсами и новостями в нашем канале @locostandup")
+    else:
+        await callback.message.answer(text=f'Для участия в розыгрыше подпишитесь на наш канал @locostandup\n')
+
+
+# Этот хэндлер будет срабатывать, если введен корректный номер мероприятия
+@router.message(StateFilter(FSMDraw.draw_choosing),
+            lambda x: x.text.isdigit() and 1 <= int(x.text))
+async def process_draw_choosing(message: Message, state: FSMContext):
+    db = await state.get_data()
+    id_list = db['id_list']
+    if int(message.text) in id_list:
+        partaker_draw_id_list = select_partaker_draw(int(message.text))
+        if str(message.from_user.id) in partaker_draw_id_list:
+            await message.answer('Вы уже участвуете в этом розыгрыше')
+            await state.clear()
+        else:
+            draw = select_one_draw(int(message.text))
+            insert_partaker_draw(message.from_user.id, int(message.text), message.from_user.username, message.from_user.full_name)
+            partaker_id = select_one_partaker_id(message.from_user.id, int(message.text))
+            draw_end = draw_datetime(f'{draw["date"]} {draw["time"]}')
+            await message.answer_photo(photo=draw["photo"], caption=f'Вы участвуете в розыгрыше:\n{draw["name"].upper()}\nВам присвоен номер 👉🏻<b>{str(partaker_id["id"]).upper()}</b>❗️❗️❗️\nОжидайте результатов:\n{draw_end}', parse_mode='HTML')
+            await state.clear()
+    else:
+        await message.answer(text=f'Введен не верный код розыгрыша, попробуйте еще раз\n\n'
+                                f'Чтобы прервать процесс выбора розыгрыша введите команду - /cancel')
+
+
+# Этот хэндлер будет срабатывать, если во время
+# выбора мероприятия будет введено что-то некорректное
+@router.message(StateFilter(FSMDraw.draw_choosing))
+async def warning_not_draw(message: Message):
+    await message.answer(
+        text=f'Вы находитесь в процессе выбора розыгрыша\n\n'
+             f'<i>ДЛЯ ВЫБОРА РОЗЫГРЫША ВВЕДИТЕ КОД РОЗЫГРЫША</i>❗️\n\n'
+             'Если вы хотите прервать выбор розыгрыша - '
+             'отправьте команду /cancel', parse_mode='HTML')
+
+
+# Этот хэндлер будет срабатывать на отправку команды /add_draw
+# и отправлять в чат правила добавления розыгрыша
+@router.message(Command(commands='add_draw'), StateFilter(default_state), IsAdmin(config.tg_bot.admin_ids))
+async def process_addevent_command(message: Message, state: FSMContext):
+    await message.answer(text=LEXICON['add_draw'])
+    await state.set_state(FSMDraw.add_draw)
+
+
+# Этот хэндлер будет добавлять мероприятие
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMDraw.add_draw))
+async def process_add_draw(message: Message, state: FSMContext):
+    add_list = [i.strip() for i in message.text.split(';')]
+    if len(add_list) == 3:
+        error = 0
+        if '"' in add_list[0] or "'" in add_list[0]:
+            await message.answer('Нахождение ковычек в название розыгрыша не допустимо, исправьте название')
+            error += 1
+        if not check_date(add_list[1]):
+            await message.answer(f'Дата введена не в верном формате, введите дату в формате:\ndd.mm.yyyy')
+            error += 1
+        if not check_time(add_list[2]):
+            await message.answer(f'Время окончания регистрации на розыгрыш введено не верно, введите время в формате:\nhh:mm')
+            error += 1
+        if error == 0:
+            await message.answer(f'Отправьте картинку c афишей розыгрыша в ответ на это сообщение\n'
+                             f'Если вы хотите прервать процесс добавления розыгрыша - '
+                             'отправьте команду /cancel')
+            await state.update_data(add_list=add_list)
+            # Устанавливаем состояние ожидания добаления афиши
+            await state.set_state(FSMDraw.add_photo_draw)
+    else:
+        await message.answer(f'Введенные данные о розыгрыше не корректны\n'
+                             f'Скорее всего вы забыли поставить ; в конце одного из разделов или поставили лишний знак ;\n'
+                             f'Сравните еще раз введенные данные с шаблоном и после исправления отправьте данные о розыгрыше\n\n'
+                             f'Если вы хотите прервать добавление розыгрыша - '
+                             'отправьте команду /cancel')
+
+
+# Этот хэндлер будет добавлять розыгрыш
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMDraw.add_photo_draw))
+async def process_add_draw(message: Message, state: FSMContext, bot: Bot):
+    if message.photo:
+        db = await state.get_data()
+        add_list = db['add_list']
+        insert_draw(add_list[0], add_list[1], add_list[2], message.photo[0].file_id)
+        await message.answer('Розыгрыш добавлен')
+        # Завершаем машину состояний
+        await state.clear()
+    else:
+        await message.answer(f'Отправленное сообщение не является картинкой, отправте картинку афиши\n'
+                             f'Если вы хотите прервать процесс добавления розыгрыша - '
+                             'отправьте команду /cancel')

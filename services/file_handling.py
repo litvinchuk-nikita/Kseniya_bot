@@ -25,3 +25,9 @@ def check_phone(phone):
     # add_id = re.fullmatch(r'^\+[7]\-\d{3}\-\d{3}-\d{2}\-\d{2}$', phone)
     add_id = re.fullmatch(r'^\d{11}$', phone)
     return True if add_id else False
+
+
+def draw_datetime(date):
+    date_1 = datetime.strptime(date, '%d.%m.%Y %H:%M')
+    date_2 = date_1 + timedelta(hours=1)
+    return datetime.strftime(date_2, '%d.%m.%Y %H:%M')
