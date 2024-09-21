@@ -190,7 +190,7 @@ async def send_message_interval(bot: Bot):
                 user_channel_status = await bot.get_chat_member(chat_id='@locostandup', user_id=int(win_user["user_id"]))
                 if user_channel_status.status != 'left':
                     win = True
-            await bot.send_photo(chat_id=win_user["user_id"], photo=draw["photo"], caption=f'ПОЗДРАВЛЯЕМ! 🎉\nВы победили в розыгрыше:\n<b>{draw["name"]}</b>\nПожалуйста, напишите @violetta_kvn_standup , чтобы получить выигрыш!', parse_mode='HTML')
+            await bot.send_photo(chat_id=win_user["user_id"], photo=draw["photo"], caption=f'ПОЗДРАВЛЯЕМ! 🎉\nВы победили в розыгрыше:\n<b>{draw["name"]}</b>\nПожалуйста, напишите @violetta_hus, чтобы получить выигрыш!', parse_mode='HTML')
             await bot.send_photo(chat_id=6469407067, photo=draw["photo"], caption=f'В <b>{draw["name"]}</b> победил пользователь {win_user["username"]}, tg: {win_user["email"]}\nСкоро он свяжется с вами', parse_mode='HTML')
             await bot.send_photo(chat_id=1328733978, photo=draw["photo"], caption=f'В <b>{draw["name"]}</b> победил пользователь {win_user["username"]}, tg: {win_user["email"]}\nСкоро он свяжется с вами', parse_mode='HTML')
             # await bot.send_photo(chat_id=1799099725, photo=draw["photo"], caption=f'Побидителем в розыгрыше <b>{draw["name"]}</b> стал {win_user["username"]} с номером <b>{win_num}</b>, tg: @{win_user["email"]}', parse_mode='HTML')
