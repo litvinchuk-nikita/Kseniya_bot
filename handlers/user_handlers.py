@@ -598,15 +598,16 @@ async def process_choose_show_reserv(message: Message, state: FSMContext):
                                     f'тел. {booking["phone"]}')
                 num += 1
                 reserved_seats += int(booking["guests"])
-            if len(reserv_list) < 30:
+            if len(reserv_list) <= 30:
                 bookings = f'\n\n'.join(booking_list)
                 await message.answer(text=f"{bookings}\n\nВсего забронировано мест: {reserved_seats}\nСвободно мест: {capacity}\n\nЧтобы отменить бронь введите команду\n/cancelreservation")
-            elif len(reserv_list) > 30 and len(reserv_list) < 60:
+            elif len(reserv_list) > 30 and len(reserv_list) <= 60:
                 bookings_1 = f'\n\n'.join(booking_list[:30])
                 bookings_2 = f'\n\n'.join(booking_list[30:])
+                print(bookings_2)
                 await message.answer(text=f"{bookings_1}")
                 await message.answer(text=f'{bookings_2}\n\nВсего забронировано мест: {reserved_seats}\nСвободно мест: {capacity}\n\nЧтобы отменить бронь введите команду\n/cancelreservation')
-            elif len(reserv_list) > 60 and len(reserv_list) < 90:
+            elif len(reserv_list) > 60 and len(reserv_list) <= 90:
                 bookings_1 = f'\n\n'.join(booking_list[:30])
                 bookings_2 = f'\n\n'.join(booking_list[30:60])
                 bookings_3 = f'\n\n'.join(booking_list[60:90])
