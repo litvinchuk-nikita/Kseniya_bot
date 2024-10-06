@@ -15,10 +15,11 @@ from database.database import (insert_event_db, insert_reserv_db, del_event_db, 
                                select_user_id_reserv, cancel_reserv, edit_photo_event, edit_photo_booking,
                                edit_name_booking, select_id_list, insert_id, insert_draw, select_draws,
                                select_one_draw, insert_partaker_draw, select_one_partaker_id,
-                               select_partaker_draw)
+                               select_partaker_draw, insert_other_event_db, select_one_other_event,
+                               select_other_event_db, del_other_event_db)
 from keyboards.other_kb import (create_menu_kb, review_kb, send_review_kb, answer_review_kb, cancel_review_kb,
                                 send_review_kb_2, cancel_answer_kb, send_answer_kb, last_review_kb, newsletter_kb,
-                                draw_kb)
+                                draw_kb, choose_event_kb, url_event_kb, choose_add_event_kb)
 from lexicon.lexicon import LEXICON
 from filters.filters import IsAdmin
 from services.file_handling import now_time, check_date, check_time, event_date, check_phone, draw_datetime
@@ -54,6 +55,8 @@ class FSMAdmin(StatesGroup):
     # бот в разные моменты взаимодействия с пользователем
     add_event = State()       # Состояние добавления мероприятия
     add_photo_event = State() # Состояние добаления афиши мероприятия
+    add_other_event = State()       # Состояние добавления мероприятия со сторонней площадки
+    add_photo_other_event = State() # Состояние добаления афиши мероприятия со сторонней площадки
     cancel_event = State()       # Состояние отмены мероприятия
     show_reserv = State()     # Состояние просмотра брони на мероприятие
     edit_event = State()       # Состояние редактирования мероприятия
@@ -158,7 +161,8 @@ async def process_cancel_command_state(message: Message, state: FSMContext):
 
 # Этот хэндлер будет срабатывать на команду "/cancel"
 # в состоянии добавления мероприятия
-@router.message(Command(commands='cancel'), StateFilter(FSMAdmin.add_event, FSMAdmin.add_photo_event))
+@router.message(Command(commands='cancel'), StateFilter(FSMAdmin.add_event, FSMAdmin.add_photo_event,
+FSMAdmin.add_other_event, FSMAdmin.add_photo_other_event))
 async def process_cancel_command_state(message: Message, state: FSMContext):
     await message.answer(
         text=f'Добавление мероприятия отменено.')
@@ -246,39 +250,7 @@ async def process_choose_command(message: Message, state: FSMContext):
         insert_id(user_id)
     else:
         print('Такой id уже добавлен')
-    events_list = []
-    id_list = []
-    num = 1
-    event_db = select_event_db()
-    if len(event_db) != 0:
-        for event in event_db:
-            try:
-                if event['capacity'] == 0 or now_time(f'{event["date"]} {event["start"]}') < datetime.now():
-                    if event_date(event["date"]) <= date.today():
-                        del_event_db(event["id"])
-                        cancel_reserv(event["name"])
-                    continue
-                events_list.append(f'{num}) "{event["name"]}"\n{event["description"]}\n'
-                                f'Дата и время: {event["date"]} в {event["start"]}\n'
-                                f'Сбор гостей в {event["entry"]}\n'
-                                f'Вход: {event["price"]}\n'
-                                f'Адрес: {event["place"]}\n'
-                                f'<b>КОД МЕРОПРИЯТИЯ 👉🏻 {event["id"]}</b>')
-                id_list.append(event["id"])
-            except:
-                print("При проверке мероприятия произошла ошибка")
-            num += 1
-        if len(events_list) == 0:
-            await message.answer("Упс! Кажется, мест нет.\nСкорее всего все места на мероприятие забронированы, либо на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
-        else:
-            events = f'\n\n'.join(events_list)
-            text = f"<b>ВЫБЕРИТЕ МЕРОПРИЯТИЕ</b>\n\n{events}\n\n<i>ЧТОБЫ ВЫБРАТЬ МЕРОПРИЯТИЕ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\nЧтобы прервать процесс бронирования введите команду - /cancel"
-            await message.answer(text=text, parse_mode='HTML')
-            # Устанавливаем состояние ожидания выбора мероприятия
-            await state.set_state(FSMFillForm.event_choosing)
-            await state.update_data(id_list=id_list)
-    else:
-        await message.answer(f"Упс! Кажется, мест нет.\nСкорее всего все места на мероприятие забронированы, либо на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
+    await message.answer(text=f'Выберите тип мероприятия:', reply_markup=choose_event_kb())
 
 
 # Этот хэндлер будет срабатывать на callback choose
@@ -291,6 +263,14 @@ async def process_choose_command(callback: CallbackQuery, state: FSMContext):
         insert_id(user_id)
     else:
         print('Такой id уже добавлен')
+    await callback.message.answer(text=f'Выберите тип мероприятия:', reply_markup=choose_event_kb())
+
+
+# Этот хэндлер будет срабатывать на callback bot_event
+# и переводить бота в состояние ожидания выбора мероприятия
+@router.callback_query(Text(text='bot_event'), StateFilter(default_state))
+async def process_choose_command(callback: CallbackQuery, state: FSMContext):
+    await callback.message.delete()
     events_list = []
     id_list = []
     num = 1
@@ -324,6 +304,34 @@ async def process_choose_command(callback: CallbackQuery, state: FSMContext):
             await state.update_data(id_list=id_list)
     else:
         await callback.message.answer(f"Упс! Кажется, мест нет.\nСкорее всего все места на мероприятие забронированы, либо на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
+
+
+# Этот хэндлер будет срабатывать на callback other_event
+# и переводить бота в состояние ожидания выбора мероприятия
+@router.callback_query(Text(text='other_event'), StateFilter(default_state))
+async def process_choose_command(callback: CallbackQuery, state: FSMContext):
+    await callback.message.delete()
+    id_list = []
+    event_db = select_other_event_db()
+    if len(event_db) != 0:
+        for event in event_db:
+            try:
+                if now_time(f'{event["date"]} {event["time"]}') < datetime.now():
+                    if event_date(event["date"]) <= date.today():
+                        del_other_event_db(event["id"])
+                    continue
+                id_list.append(event["id"])
+            except:
+                print("При проверке мероприятия произошла ошибка")
+        if len(id_list) == 0:
+            await callback.message.answer("Упс! На данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
+        else:
+            for id in id_list:
+                event = select_one_other_event(int(id))
+                text = f'"{event["name"]}"\n{event["description"]}\nДата и время: {event["date"]} в {event["time"]}\nАдрес: {event["place"]}\n'
+                await callback.message.answer_photo(photo=event["photo"], caption=text, reply_markup=url_event_kb(event["url"]), parse_mode='HTML')
+    else:
+        await callback.message.answer(f"Упс! На данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
 
 
 # Этот хэндлер будет срабатывать, если введен корректный номер мероприятия
@@ -811,8 +819,25 @@ async def del_event(message: Message):
 # и отправлять в чат правила добавления мероприятия
 @router.message(Command(commands='addevent'), StateFilter(default_state), IsAdmin(config.tg_bot.admin_ids))
 async def process_addevent_command(message: Message, state: FSMContext):
-    await message.answer(text=LEXICON['add'])
+    await message.answer(text='Какое мероприятие добавить?', reply_markup=choose_add_event_kb())
+
+
+# Этот хэндлер будет срабатывать на callback bot_add_event
+# и переводить бота в состояние ожидания выбора мероприятия
+@router.callback_query(Text(text='bot_add_event'), StateFilter(default_state))
+async def process_choose_command(callback: CallbackQuery, state: FSMContext):
+    await callback.message.delete()
+    await callback.message.answer(text=LEXICON['add'])
     await state.set_state(FSMAdmin.add_event)
+
+
+# Этот хэндлер будет срабатывать на callback other_add_event
+# и переводить бота в состояние ожидания выбора мероприятия
+@router.callback_query(Text(text='other_add_event'), StateFilter(default_state))
+async def process_choose_command(callback: CallbackQuery, state: FSMContext):
+    await callback.message.delete()
+    await callback.message.answer(text=LEXICON['other_add'])
+    await state.set_state(FSMAdmin.add_other_event)
 
 
 # Этот хэндлер будет добавлять мероприятие
@@ -861,6 +886,45 @@ async def process_add_event(message: Message, state: FSMContext):
 
 
 # Этот хэндлер будет добавлять мероприятие
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMAdmin.add_other_event))
+async def process_add_event(message: Message, state: FSMContext):
+    add_list = [i.strip() for i in message.text.split(';')]
+    if len(add_list) == 6:
+        error = 0
+        if '"' in add_list[0] or "'" in add_list[0]:
+            await message.answer('Нахождение ковычек в название мероприятия не допустимо, исправьте название')
+            error += 1
+        if '"' in add_list[1] or "'" in add_list[1]:
+            await message.answer('Нахождение ковычек в описании мероприятия не допустимо, исправьте описание')
+            error += 1
+        if not check_date(add_list[2]):
+            await message.answer(f'Дата введена не в верном формате, введите дату в формате:\ndd.mm.yyyy')
+            error += 1
+        if not check_time(add_list[3]):
+            await message.answer(f'Время начала мероприятия введено не в верном формате, введите время в формате:\nhh:mm')
+            error += 1
+        if '"' in add_list[4] or "'" in add_list[4]:
+            await message.answer('Нахождение ковычек в названии места проведения и адресе не допустимо, исправьте название места проведения и адрес')
+            error += 1
+        if '"' in add_list[5] or "'" in add_list[5]:
+            await message.answer('Нахождение ковычек у ссылки не допустимо, исправьте ссылку')
+            error += 1
+        if error == 0:
+            await message.answer(f'Отправьте картинку c афишей в ответ на это сообщение\n'
+                             f'Если вы хотите прервать процесс добавления мероприятия - '
+                             'отправьте команду /cancel')
+            await state.update_data(add_list=add_list)
+            # Устанавливаем состояние ожидания добаления афиши
+            await state.set_state(FSMAdmin.add_photo_other_event)
+    else:
+        await message.answer(f'Введенные данные о мероприятии не корректны\n'
+                             f'Скорее всего вы забыли поставить ; в конце одного из разделов или поставили лишний знак ;\n'
+                             f'Сравните еще раз введенные данные с шаблоном и после исправления отправьте данные о мероприятии\n\n'
+                             f'Если вы хотите прервать процесс добавления мероприятия - '
+                             'отправьте команду /cancel')
+
+
+# Этот хэндлер будет добавлять мероприятие
 @router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMAdmin.add_photo_event))
 async def process_add_event(message: Message, state: FSMContext, bot: Bot):
     if message.photo:
@@ -880,6 +944,46 @@ async def process_add_event(message: Message, state: FSMContext, bot: Bot):
                                         caption=text)
                 except:
                     print(f'Произошла ошибка при отправке рассылки по id - {id}')
+        await message.answer('Рассылка отправлена')
+        # Завершаем машину состояний
+        await state.clear()
+    else:
+        await message.answer(f'Отправленное сообщение не является картинкой, отправте картинку афиши\n'
+                             f'Если вы хотите прервать процесс добавления мероприятия - '
+                             'отправьте команду /cancel')
+
+
+# Этот хэндлер будет добавлять мероприятие
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMAdmin.add_photo_other_event))
+async def process_add_event(message: Message, state: FSMContext, bot: Bot):
+    if message.photo:
+        db = await state.get_data()
+        add_list = db['add_list']
+        insert_other_event_db(add_list[0], add_list[1], add_list[2], add_list[3],
+                        add_list[4], message.photo[0].file_id, add_list[5])
+        await message.answer('Мероприятие добавлено')
+        # Отправляем рассылку на новое мероприятие
+        id_list = select_id_list()
+        text = text = f'ДОСТУПНО НОВОЕ МЕРОПРИЯТИЕ\n\n"{add_list[0]}"\n{add_list[1]}\nДата и время: {add_list[2]} в {add_list[3]}\nАдрес: {add_list[4]}\n'
+        # for id in id_list:
+        #         try:
+        #             await bot.send_photo(chat_id=id,
+        #                                 photo=message.photo[0].file_id,
+        #                                 caption=text,
+        #                                 reply_markup=url_event_kb(add_list[5]),
+        #                                 parse_mode='HTML')
+        #         except:
+        #             print(f'Произошла ошибка при отправке рассылки по id - {id}')
+        await bot.send_photo(chat_id=1799099725,
+                            photo=message.photo[0].file_id,
+                            caption=text,
+                            reply_markup=url_event_kb(add_list[5]),
+                            parse_mode='HTML')
+        await bot.send_photo(chat_id=6469407067,
+                            photo=message.photo[0].file_id,
+                            caption=text,
+                            reply_markup=url_event_kb(add_list[5]),
+                            parse_mode='HTML')
         await message.answer('Рассылка отправлена')
         # Завершаем машину состояний
         await state.clear()
