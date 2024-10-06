@@ -126,3 +126,33 @@ def draw_kb() -> InlineKeyboardMarkup:
     kb_builder: InlineKeyboardBuilder = InlineKeyboardBuilder()
     kb_builder.add(draw_button)
     return kb_builder.as_markup()
+
+
+def choose_event_kb() -> InlineKeyboardMarkup:
+    bot_event_button: InlineKeyboardButton = InlineKeyboardButton(
+        text='Мероприятия доступные в боте', callback_data='bot_event')
+    other_event_button: InlineKeyboardButton = InlineKeyboardButton(
+        text='Мероприятия на сторонних площадках', callback_data='other_event')
+    kb_builder: InlineKeyboardBuilder = InlineKeyboardBuilder()
+    kb_builder.add(bot_event_button, other_event_button)
+    kb_builder.adjust(1, 1)
+    return kb_builder.as_markup()
+
+
+def choose_add_event_kb() -> InlineKeyboardMarkup:
+    bot_event_button: InlineKeyboardButton = InlineKeyboardButton(
+        text='С бронью зрительских мест', callback_data='bot_add_event')
+    other_event_button: InlineKeyboardButton = InlineKeyboardButton(
+        text='Со ссылкой на покупку билетов', callback_data='other_add_event')
+    kb_builder: InlineKeyboardBuilder = InlineKeyboardBuilder()
+    kb_builder.add(bot_event_button, other_event_button)
+    kb_builder.adjust(1, 1)
+    return kb_builder.as_markup()
+
+
+def url_event_kb(url) -> InlineKeyboardMarkup:
+    url_button: InlineKeyboardButton = InlineKeyboardButton(
+        text='Купить билеты', url=url)
+    kb_builder: InlineKeyboardBuilder = InlineKeyboardBuilder()
+    kb_builder.add(url_button)
+    return kb_builder.as_markup()

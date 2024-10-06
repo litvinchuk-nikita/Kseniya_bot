@@ -250,31 +250,12 @@ async def process_choose_command(message: Message, state: FSMContext):
         insert_id(user_id)
     else:
         print('Такой id уже добавлен')
-    await message.answer(text=f'Выберите тип мероприятия:', reply_markup=choose_event_kb())
-
-
-# Этот хэндлер будет срабатывать на callback choose
-# и переводить бота в состояние ожидания выбора мероприятия
-@router.callback_query(Text(text='choose'), StateFilter(default_state))
-async def process_choose_command(callback: CallbackQuery, state: FSMContext):
-    id_list_newsletter = select_id_list()
-    if str(callback.from_user.id) not in id_list_newsletter:
-        user_id = callback.from_user.id
-        insert_id(user_id)
-    else:
-        print('Такой id уже добавлен')
-    await callback.message.answer(text=f'Выберите тип мероприятия:', reply_markup=choose_event_kb())
-
-
-# Этот хэндлер будет срабатывать на callback bot_event
-# и переводить бота в состояние ожидания выбора мероприятия
-@router.callback_query(Text(text='bot_event'), StateFilter(default_state))
-async def process_choose_command(callback: CallbackQuery, state: FSMContext):
-    await callback.message.delete()
     events_list = []
     id_list = []
     num = 1
     event_db = select_event_db()
+    id_list_2 = []
+    event_db_2 = select_other_event_db()
     if len(event_db) != 0:
         for event in event_db:
             try:
@@ -293,45 +274,91 @@ async def process_choose_command(callback: CallbackQuery, state: FSMContext):
             except:
                 print("При проверке мероприятия произошла ошибка")
             num += 1
-        if len(events_list) == 0:
-            await callback.message.answer("Упс! Кажется, мест нет.\nСкорее всего все места на мероприятие забронированы, либо на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
-        else:
-            events = f'\n\n'.join(events_list)
-            text = f"<b>ВЫБЕРИТЕ МЕРОПРИЯТИЕ</b>\n\n{events}\n\n<i>ЧТОБЫ ВЫБРАТЬ МЕРОПРИЯТИЕ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\nЧтобы прервать процесс бронирования введите команду - /cancel"
-            await callback.message.answer(text=text, parse_mode='HTML')
-            # Устанавливаем состояние ожидания выбора мероприятия
-            await state.set_state(FSMFillForm.event_choosing)
-            await state.update_data(id_list=id_list)
-    else:
-        await callback.message.answer(f"Упс! Кажется, мест нет.\nСкорее всего все места на мероприятие забронированы, либо на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
-
-
-# Этот хэндлер будет срабатывать на callback other_event
-# и переводить бота в состояние ожидания выбора мероприятия
-@router.callback_query(Text(text='other_event'), StateFilter(default_state))
-async def process_choose_command(callback: CallbackQuery, state: FSMContext):
-    await callback.message.delete()
-    id_list = []
-    event_db = select_other_event_db()
-    if len(event_db) != 0:
-        for event in event_db:
+        for event in event_db_2:
             try:
                 if now_time(f'{event["date"]} {event["time"]}') < datetime.now():
                     if event_date(event["date"]) <= date.today():
                         del_other_event_db(event["id"])
                     continue
+                events_list.append(f'{num}) "{event["name"]}"\n{event["description"]}\n'
+                                f'Дата и время: {event["date"]} в {event["time"]}\n'
+                                f'Адрес: {event["place"]}\n'
+                                f'<b>Для покупки билета 👉🏻 <a href="{event["url"]}">ЖМИ СЮДА</a></b>')
+            except:
+                print("При проверке мероприятия произошла ошибка")
+            num += 1
+        if len(events_list) == 0:
+            await message.answer("Упс! Кажется, мест нет.\nСкорее всего все места на мероприятие забронированы, либо на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
+        else:
+            events = f'\n\n'.join(events_list)
+            text = f"<b>ВЫБЕРИТЕ МЕРОПРИЯТИЕ</b>\n\n{events}\n\n<i>ЧТОБЫ ВЫБРАТЬ МЕРОПРИЯТИЕ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\nЧтобы прервать процесс бронирования введите команду - /cancel"
+            print(len(text))
+            await message.answer(text=text, disable_web_page_preview=True, parse_mode='HTML')
+            # Устанавливаем состояние ожидания выбора мероприятия
+            await state.set_state(FSMFillForm.event_choosing)
+            await state.update_data(id_list=id_list)
+    else:
+        await message.answer(f"Упс! Кажется, мест нет.\nСкорее всего все места на мероприятие забронированы, либо на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
+
+
+# Этот хэндлер будет срабатывать на callback choose
+# и переводить бота в состояние ожидания выбора мероприятия
+@router.callback_query(Text(text='choose'), StateFilter(default_state))
+async def process_choose_command(callback: CallbackQuery, state: FSMContext):
+    id_list_newsletter = select_id_list()
+    if str(callback.from_user.id) not in id_list_newsletter:
+        user_id = callback.from_user.id
+        insert_id(user_id)
+    else:
+        print('Такой id уже добавлен')
+    events_list = []
+    id_list = []
+    num = 1
+    event_db = select_event_db()
+    id_list_2 = []
+    event_db_2 = select_other_event_db()
+    if len(event_db) != 0:
+        for event in event_db:
+            try:
+                if event['capacity'] == 0 or now_time(f'{event["date"]} {event["start"]}') < datetime.now():
+                    if event_date(event["date"]) <= date.today():
+                        del_event_db(event["id"])
+                        cancel_reserv(event["name"])
+                    continue
+                events_list.append(f'{num}) "{event["name"]}"\n{event["description"]}\n'
+                                f'Дата и время: {event["date"]} в {event["start"]}\n'
+                                f'Сбор гостей в {event["entry"]}\n'
+                                f'Вход: {event["price"]}\n'
+                                f'Адрес: {event["place"]}\n'
+                                f'<b>КОД МЕРОПРИЯТИЯ 👉🏻 {event["id"]}</b>')
                 id_list.append(event["id"])
             except:
                 print("При проверке мероприятия произошла ошибка")
-        if len(id_list) == 0:
-            await callback.message.answer("Упс! На данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
+            num += 1
+        for event in event_db_2:
+            try:
+                if now_time(f'{event["date"]} {event["time"]}') < datetime.now():
+                    if event_date(event["date"]) <= date.today():
+                        del_other_event_db(event["id"])
+                    continue
+                events_list.append(f'{num}) "{event["name"]}"\n{event["description"]}\n'
+                                f'Дата и время: {event["date"]} в {event["time"]}\n'
+                                f'Адрес: {event["place"]}\n'
+                                f'<b>Для покупки билета 👉🏻 <a href="{event["url"]}">ЖМИ СЮДА</a></b>')
+            except:
+                print("При проверке мероприятия произошла ошибка")
+            num += 1
+        if len(events_list) == 0:
+            await callback.message.answer("Упс! Кажется, мест нет.\nСкорее всего все места на мероприятие забронированы, либо на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
         else:
-            for id in id_list:
-                event = select_one_other_event(int(id))
-                text = f'"{event["name"]}"\n{event["description"]}\nДата и время: {event["date"]} в {event["time"]}\nАдрес: {event["place"]}\n'
-                await callback.message.answer_photo(photo=event["photo"], caption=text, reply_markup=url_event_kb(event["url"]), parse_mode='HTML')
+            events = f'\n\n'.join(events_list)
+            text = f"<b>ВЫБЕРИТЕ МЕРОПРИЯТИЕ</b>\n\n{events}\n\n<i>ЧТОБЫ ВЫБРАТЬ МЕРОПРИЯТИЕ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\nЧтобы прервать процесс бронирования введите команду - /cancel"
+            await callback.message.answer(text=text, disable_web_page_preview=True, parse_mode='HTML')
+            # Устанавливаем состояние ожидания выбора мероприятия
+            await state.set_state(FSMFillForm.event_choosing)
+            await state.update_data(id_list=id_list)
     else:
-        await callback.message.answer(f"Упс! На данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
+        await callback.message.answer(f"Упс! Кажется, мест нет.\nСкорее всего все места на мероприятие забронированы, либо на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
 
 
 # Этот хэндлер будет срабатывать, если введен корректный номер мероприятия

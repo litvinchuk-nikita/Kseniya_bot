@@ -756,3 +756,95 @@ def select_partaker_draw_id(draw_id):
         if (conn):
             conn.close()
             print("Соединение с SQLite закрыто")
+
+
+def insert_other_event_db(name, description, date, time, place, photo, url):
+    try:
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('INSERT INTO other_events (name, description, date, time, place, photo, url)'
+                    ' VALUES ("%s", "%s", "%s", "%s", "%s", "%s", "%s")'
+                    % (name, description, date, time, place, photo, url))
+        print("Данные в таблицу добавлены")
+        conn.commit()
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при добавлении данных в sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def select_other_event_db():
+    try:
+        event_list = []
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('SELECT name, description, date, time, place, photo, url, id FROM other_events')
+        print("Данные получены")
+        events = cur.fetchall()
+        cur.close()
+        for event in events:
+            event_list.append({'name': event[0],
+                               'description': event[1],
+                               'date': event[2],
+                               'time': event[3],
+                               'place': event[4],
+                               'photo': event[5],
+                               'url': event[6],
+                               'id': event[7]})
+        return event_list
+    except sqlite3.Error as error:
+        print("Ошибка при получении данных из sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+def select_one_other_event(id):
+    try:
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('SELECT * FROM other_events WHERE id="%s"' % (id))
+        print("Данные получены")
+        event = cur.fetchall()
+        cur.close()
+        return {'id': event[0][0],
+                'name': event[0][1],
+                'description': event[0][2],
+                'date': event[0][3],
+                'time': event[0][4],
+                'place': event[0][5],
+                'photo': event[0][6],
+                'url': event[0][7]}
+    except sqlite3.Error as error:
+        print("Ошибка при получении данных из sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def del_other_event_db(event_id):
+    try:
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('DELETE FROM other_events WHERE id="%s";' % (event_id))
+        conn.commit()
+        print("Данные удалены")
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при обновлении данных из sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
