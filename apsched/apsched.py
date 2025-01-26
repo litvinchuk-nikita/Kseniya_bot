@@ -68,8 +68,8 @@ async def send_message_cron(bot: Bot):
 def select_draws():
     try:
         draw_list = []
-        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
-        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
         cur = conn.cursor()
         print("База данных подключена к SQLite")
         cur.execute('SELECT name, date, time, photo, id FROM draws')
@@ -94,8 +94,8 @@ def select_draws():
 def select_partaker_draw_id(draw_id):
     try:
         draw_list = []
-        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
-        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
         cur = conn.cursor()
         print("База данных подключена к SQLite")
         cur.execute('SELECT id FROM partaker_draw WHERE draw_id="%s"' % (draw_id))
@@ -112,13 +112,11 @@ def select_partaker_draw_id(draw_id):
             conn.close()
             print("Соединение с SQLite закрыто")
 
-# print(select_partaker_draw_id(5))
-# print(select_draws())
 
 def select_partaker_draw_user_id(id):
     try:
-        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
-        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
         cur = conn.cursor()
         print("База данных подключена к SQLite")
         cur.execute('SELECT user_id, email, username FROM partaker_draw WHERE id="%s"' % (id))
@@ -138,8 +136,8 @@ def select_partaker_draw_user_id(id):
 
 def del_draw(draw_id):
     try:
-        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
-        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
         cur = conn.cursor()
         print("База данных подключена к SQLite")
         cur.execute('DELETE FROM draws WHERE id="%s";' % (draw_id))
@@ -153,13 +151,11 @@ def del_draw(draw_id):
             conn.close()
             print("Соединение с SQLite закрыто")
 
-# del_draw(6)
-# print(select_draws())
 
 def select_id_list():
     try:
-        # conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
-        conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
         cur = conn.cursor()
         print("База данных подключена к SQLite")
         cur.execute('SELECT user_id FROM id_list')
@@ -193,7 +189,7 @@ async def send_message_interval(bot: Bot):
             await bot.send_photo(chat_id=win_user["user_id"], photo=draw["photo"], caption=f'ПОЗДРАВЛЯЕМ! 🎉\nВы победили в розыгрыше:\n<b>{draw["name"]}</b>\nПожалуйста, напишите @violetta_hus, чтобы получить выигрыш!', parse_mode='HTML')
             await bot.send_photo(chat_id=6469407067, photo=draw["photo"], caption=f'В <b>{draw["name"]}</b> победил пользователь {win_user["username"]}, tg: {win_user["email"]}\nСкоро он свяжется с вами', parse_mode='HTML')
             await bot.send_photo(chat_id=1328733978, photo=draw["photo"], caption=f'В <b>{draw["name"]}</b> победил пользователь {win_user["username"]}, tg: {win_user["email"]}\nСкоро он свяжется с вами', parse_mode='HTML')
-            # await bot.send_photo(chat_id=1799099725, photo=draw["photo"], caption=f'Побидителем в розыгрыше <b>{draw["name"]}</b> стал {win_user["username"]} с номером <b>{win_num}</b>, tg: @{win_user["email"]}', parse_mode='HTML')
+            # await bot.send_photo(chat_id=1799099725, photo=draw["photo"], caption=f'В <b>{draw["name"]}</b> победил пользователь {win_user["username"]}, tg: {win_user["email"]}\nСкоро он свяжется с вами', parse_mode='HTML')
             del_draw(draw["id"])
             id_list = select_id_list()
             text = f'Итоги конкурса подведены.\nСегодня победил пользователь {win_user["username"]}, под номером {win_num}!\nПоздравляем с победой!\nВсем большое спасибо за участие.'
