@@ -149,10 +149,55 @@ def choose_add_event_kb() -> InlineKeyboardMarkup:
     kb_builder.adjust(1, 1)
     return kb_builder.as_markup()
 
+def choose_edit_event_kb() -> InlineKeyboardMarkup:
+    bot_event_button: InlineKeyboardButton = InlineKeyboardButton(
+        text='С бронью зрительских мест', callback_data='bot_edit_event')
+    other_event_button: InlineKeyboardButton = InlineKeyboardButton(
+        text='Со ссылкой на покупку билетов', callback_data='other_edit_event')
+    kb_builder: InlineKeyboardBuilder = InlineKeyboardBuilder()
+    kb_builder.add(bot_event_button, other_event_button)
+    kb_builder.adjust(1, 1)
+    return kb_builder.as_markup()
+
 
 def url_event_kb(url) -> InlineKeyboardMarkup:
     url_button: InlineKeyboardButton = InlineKeyboardButton(
         text='Купить билеты', url=url)
     kb_builder: InlineKeyboardBuilder = InlineKeyboardBuilder()
     kb_builder.add(url_button)
+    return kb_builder.as_markup()
+
+def create_pag_kb(pag, event_id) -> InlineKeyboardMarkup:
+    event_button: InlineKeyboardButton = InlineKeyboardButton(
+        text='Забронировать места', callback_data=event_id)
+    forward_button: InlineKeyboardButton = InlineKeyboardButton(
+        text='>>', callback_data='forward')
+    backward_button: InlineKeyboardButton = InlineKeyboardButton(
+        text='<<', callback_data='backward')
+    pag_button: InlineKeyboardButton = InlineKeyboardButton(
+        text=pag, callback_data='pag')
+    cancel_button: InlineKeyboardButton = InlineKeyboardButton(
+        text='Отменить бронирование', callback_data='cancel')
+    kb_builder: InlineKeyboardBuilder = InlineKeyboardBuilder()
+    kb_builder.add(event_button, backward_button,
+                   pag_button, forward_button, cancel_button)
+    kb_builder.adjust(1, 3, 1)
+    return kb_builder.as_markup()
+
+
+def create_pag_kb_url(pag, url) -> InlineKeyboardMarkup:
+    event_button: InlineKeyboardButton = InlineKeyboardButton(
+        text='Купить билеты', url=url, callback_data='event_url')
+    forward_button: InlineKeyboardButton = InlineKeyboardButton(
+        text='>>', callback_data='forward')
+    backward_button: InlineKeyboardButton = InlineKeyboardButton(
+        text='<<', callback_data='backward')
+    pag_button: InlineKeyboardButton = InlineKeyboardButton(
+        text=pag, callback_data='pag')
+    cancel_button: InlineKeyboardButton = InlineKeyboardButton(
+        text='Отменить бронирование', callback_data='cancel')
+    kb_builder: InlineKeyboardBuilder = InlineKeyboardBuilder()
+    kb_builder.add(event_button, backward_button,
+                   pag_button, forward_button, cancel_button)
+    kb_builder.adjust(1, 3, 1)
     return kb_builder.as_markup()

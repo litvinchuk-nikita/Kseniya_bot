@@ -16,10 +16,13 @@ from database.database import (insert_event_db, insert_reserv_db, del_event_db, 
                                edit_name_booking, select_id_list, insert_id, insert_draw, select_draws,
                                select_one_draw, insert_partaker_draw, select_one_partaker_id,
                                select_partaker_draw, insert_other_event_db, select_one_other_event,
-                               select_other_event_db, del_other_event_db)
+                               select_other_event_db, del_other_event_db, edit_date_other_event, edit_name_other_event,
+                               edit_description_other_event, edit_time_other_event, edit_place_other_event, edit_photo_other_event,
+                               edit_url_other_event, select_other_event_id)
 from keyboards.other_kb import (create_menu_kb, review_kb, send_review_kb, answer_review_kb, cancel_review_kb,
                                 send_review_kb_2, cancel_answer_kb, send_answer_kb, last_review_kb, newsletter_kb,
-                                draw_kb, choose_event_kb, url_event_kb, choose_add_event_kb)
+                                draw_kb, choose_event_kb, url_event_kb, choose_add_event_kb, create_pag_kb, choose_edit_event_kb,
+                                create_pag_kb_url)
 from lexicon.lexicon import LEXICON
 from filters.filters import IsAdmin
 from services.file_handling import now_time, check_date, check_time, event_date, check_phone, draw_datetime
@@ -67,16 +70,25 @@ class FSMEditEvent(StatesGroup):
     # перечисляя возможные состояния, в которых будет находиться
     # бот в разные моменты взаимодействия с пользователем
     choose_event = State()       # Состояние выбора мероприятия
+    choose_other_event = State()       # Состояние выбора мероприятия
     choose_change = State()      # Состояние выбора изменения
+    choose_other_change = State()      # Состояние выбора изменения
     edit_name = State()          # Состояние изменения названия
+    edit_other_name = State()          # Состояние изменения названия
     edit_date = State()          # Состояние изменения даты
+    edit_other_date = State()          # Состояние изменения даты
     edit_capacity = State()      # Состояние изменения вместимости
     edit_description = State()   # Состояние изменения описания
+    edit_other_description = State()   # Состояние изменения описания
     edit_place = State()         # Состояние изменения адреса
+    edit_other_place = State()         # Состояние изменения адреса
     edit_entry = State()         # Состояние изменения сбора гостей
     edit_start = State()         # Состояние изменения начала
     edit_price = State()         # Состояние изменения стоимости
     edit_photo = State()         # Состояние изменения афиши
+    edit_other_photo = State()         # Состояние изменения афиши
+    edit_time = State()         # Состояние изменения времени начала
+    edit_url = State()         # Состояние изменения ссылки
 
 
 class FSMNewsletter(StatesGroup):
@@ -158,6 +170,16 @@ async def process_cancel_command_state(message: Message, state: FSMContext):
     # Сбрасываем состояние и очищаем данные, полученные внутри состояний
     await state.clear()
 
+
+# этот хэндлер будет срабатывать на callback "cancel"
+# в состоянии выбора мероприятия и выбора количества гостей
+@router.callback_query(Text(text='cancel'), StateFilter(FSMFillForm))
+async def process_cancel_command(callback: CallbackQuery, state: FSMContext):
+    await callback.message.answer(
+        text=f'Бронирование мест отменено.')
+    await callback.message.delete()
+    # Сбрасываем состояние и очищаем данные, полученные внутри состояний
+    await state.clear()
 
 # Этот хэндлер будет срабатывать на команду "/cancel"
 # в состоянии добавления мероприятия
@@ -246,59 +268,77 @@ async def process_cancel_command_state(message: Message, state: FSMContext):
 async def process_choose_command(message: Message, state: FSMContext):
     id_list_newsletter = select_id_list()
     if str(message.from_user.id) not in id_list_newsletter:
-        user_id = message.from_user.id
+        user_id = massage.from_user.id
         insert_id(user_id)
     else:
         print('Такой id уже добавлен')
-    events_list = []
     id_list = []
-    num = 1
+    id_list_other = []
+    id_list_all = []
     event_db = select_event_db()
-    id_list_2 = []
     event_db_2 = select_other_event_db()
+    string = 1
     if len(event_db) != 0:
         for event in event_db:
             try:
-                if event['capacity'] == 0 or now_time(f'{event["date"]} {event["start"]}') < datetime.now():
+                if now_time(f'{event["date"]} {event["start"]}') < datetime.now():
                     if event_date(event["date"]) <= date.today():
                         del_event_db(event["id"])
                         cancel_reserv(event["name"])
                     continue
-                events_list.append(f'{num}) "{event["name"]}"\n{event["description"]}\n'
-                                f'Дата и время: {event["date"]} в {event["start"]}\n'
-                                f'Сбор гостей в {event["entry"]}\n'
-                                f'Вход: {event["price"]}\n'
-                                f'Адрес: {event["place"]}\n'
-                                f'<b>КОД МЕРОПРИЯТИЯ 👉🏻 {event["id"]}</b>')
                 id_list.append(event["id"])
             except:
                 print("При проверке мероприятия произошла ошибка")
-            num += 1
+    if len(event_db_2) != 0:
         for event in event_db_2:
             try:
                 if now_time(f'{event["date"]} {event["time"]}') < datetime.now():
                     if event_date(event["date"]) <= date.today():
                         del_other_event_db(event["id"])
                     continue
-                events_list.append(f'{num}) "{event["name"]}"\n{event["description"]}\n'
-                                f'Дата и время: {event["date"]} в {event["time"]}\n'
-                                f'Адрес: {event["place"]}\n'
-                                f'<b>Для покупки билета 👉🏻 <a href="{event["url"]}">ЖМИ СЮДА</a></b>')
+                id_list_other.append(event["id"])
             except:
                 print("При проверке мероприятия произошла ошибка")
-            num += 1
-        if len(events_list) == 0:
-            await message.answer("Упс! Кажется, мест нет.\nСкорее всего все места на мероприятие забронированы, либо на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
-        else:
-            events = f'\n\n'.join(events_list)
-            text = f"<b>ВЫБЕРИТЕ МЕРОПРИЯТИЕ</b>\n\n{events}\n\n<i>ЧТОБЫ ВЫБРАТЬ МЕРОПРИЯТИЕ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\nЧтобы прервать процесс бронирования введите команду - /cancel"
-            print(len(text))
-            await message.answer(text=text, disable_web_page_preview=True, parse_mode='HTML')
+    id_list_all = id_list + id_list_other
+    if len(id_list) == 0 and len(id_list_other) == 0:
+        await message.answer(f"Упс! Кажется, на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
+    else:
+        if len(id_list) != 0 and len(id_list_other) == 0:
+            one_event = select_one_event(id_list_all[string - 1])
+            pag = f'{string}/{len(id_list_all)}'
+            if one_event['capacity'] != 0:
+                text = f'{one_event["description"]}\nДата и время: {one_event["date"]} в {one_event["start"]}\nСбор гостей в {one_event["entry"]}\nВход: {one_event["price"]}\nАдрес: {one_event["place"]}\n'
+            else:
+                text = f'!!! SOLDOUT !!!\nК сожалению, на это шоу мест больше нет, но Вы можете забронировать места или приобрести билеты на другое мероприятие. Листайте карусель.\n\nДата и время: {one_event["date"]} в {one_event["start"]}\nСбор гостей в {one_event["entry"]}\nВход: {one_event["price"]}\nАдрес: {one_event["place"]}\n'
+            await message.answer_photo(
+                photo=one_event['photo'],
+                caption=text,
+                reply_markup=create_pag_kb(pag=pag, event_id=id_list_all[string - 1]))
             # Устанавливаем состояние ожидания выбора мероприятия
             await state.set_state(FSMFillForm.event_choosing)
-            await state.update_data(id_list=id_list)
-    else:
-        await message.answer(f"Упс! Кажется, мест нет.\nСкорее всего все места на мероприятие забронированы, либо на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
+            await state.update_data(id_list=id_list, id_list_other=id_list_other, id_list_all=id_list_all, string=string)
+        elif len(id_list_other) != 0 and len(id_list) == 0:
+            one_other_event = select_one_other_event(id_list_all[string - 1])
+            pag = f'{string}/{len(id_list_all)}'
+            text = f'{one_other_event["description"]}\nДата и время: {one_other_event["date"]} в {one_other_event["time"]}\nАдрес: {one_other_event["place"]}'
+            await message.answer_photo(
+                photo=one_other_event['photo'],
+                caption=text,
+                reply_markup=create_pag_kb_url(pag=pag, url=one_other_event['url']))
+        else:
+            one_event = select_one_event(id_list_all[string - 1])
+            pag = f'{string}/{len(id_list_all)}'
+            if one_event['capacity'] != 0:
+                text = f'{one_event["description"]}\nДата и время: {one_event["date"]} в {one_event["start"]}\nСбор гостей в {one_event["entry"]}\nВход: {one_event["price"]}\nАдрес: {one_event["place"]}\n'
+            else:
+                text = f'!!! SOLDOUT !!!\nК сожалению, на это шоу мест больше нет, но Вы можете забронировать места или приобрести билеты на другое мероприятие. Листайте карусель.\n\nДата и время: {one_event["date"]} в {one_event["start"]}\nСбор гостей в {one_event["entry"]}\nВход: {one_event["price"]}\nАдрес: {one_event["place"]}\n'
+            await message.answer_photo(
+                photo=one_event['photo'],
+                caption=text,
+                reply_markup=create_pag_kb(pag=pag, event_id=id_list_all[string - 1]))
+            # Устанавливаем состояние ожидания выбора мероприятия
+            await state.set_state(FSMFillForm.event_choosing)
+            await state.update_data(id_list=id_list, id_list_other=id_list_other, id_list_all=id_list_all, string=string)
 
 
 # Этот хэндлер будет срабатывать на callback choose
@@ -311,80 +351,182 @@ async def process_choose_command(callback: CallbackQuery, state: FSMContext):
         insert_id(user_id)
     else:
         print('Такой id уже добавлен')
-    events_list = []
     id_list = []
-    num = 1
+    id_list_other = []
+    id_list_all = []
     event_db = select_event_db()
-    id_list_2 = []
     event_db_2 = select_other_event_db()
+    string = 1
     if len(event_db) != 0:
         for event in event_db:
             try:
-                if event['capacity'] == 0 or now_time(f'{event["date"]} {event["start"]}') < datetime.now():
+                if now_time(f'{event["date"]} {event["start"]}') < datetime.now():
                     if event_date(event["date"]) <= date.today():
                         del_event_db(event["id"])
                         cancel_reserv(event["name"])
                     continue
-                events_list.append(f'{num}) "{event["name"]}"\n{event["description"]}\n'
-                                f'Дата и время: {event["date"]} в {event["start"]}\n'
-                                f'Сбор гостей в {event["entry"]}\n'
-                                f'Вход: {event["price"]}\n'
-                                f'Адрес: {event["place"]}\n'
-                                f'<b>КОД МЕРОПРИЯТИЯ 👉🏻 {event["id"]}</b>')
                 id_list.append(event["id"])
             except:
                 print("При проверке мероприятия произошла ошибка")
-            num += 1
+    if len(event_db_2) != 0:
         for event in event_db_2:
             try:
                 if now_time(f'{event["date"]} {event["time"]}') < datetime.now():
                     if event_date(event["date"]) <= date.today():
                         del_other_event_db(event["id"])
                     continue
-                events_list.append(f'{num}) "{event["name"]}"\n{event["description"]}\n'
-                                f'Дата и время: {event["date"]} в {event["time"]}\n'
-                                f'Адрес: {event["place"]}\n'
-                                f'<b>Для покупки билета 👉🏻 <a href="{event["url"]}">ЖМИ СЮДА</a></b>')
+                id_list_other.append(event["id"])
             except:
                 print("При проверке мероприятия произошла ошибка")
-            num += 1
-        if len(events_list) == 0:
-            await callback.message.answer("Упс! Кажется, мест нет.\nСкорее всего все места на мероприятие забронированы, либо на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
-        else:
-            events = f'\n\n'.join(events_list)
-            text = f"<b>ВЫБЕРИТЕ МЕРОПРИЯТИЕ</b>\n\n{events}\n\n<i>ЧТОБЫ ВЫБРАТЬ МЕРОПРИЯТИЕ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\nЧтобы прервать процесс бронирования введите команду - /cancel"
-            await callback.message.answer(text=text, disable_web_page_preview=True, parse_mode='HTML')
+    id_list_all = id_list + id_list_other
+    if len(id_list) == 0 and len(id_list_other) == 0:
+        await callback.message.answer(f"Упс! Кажется, на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
+    else:
+        if len(id_list) != 0 and len(id_list_other) == 0:
+            one_event = select_one_event(id_list_all[string - 1])
+            pag = f'{string}/{len(id_list_all)}'
+            await callback.message.delete()
+            if one_event['capacity'] != 0:
+                text = f'{one_event["description"]}\nДата и время: {one_event["date"]} в {one_event["start"]}\nСбор гостей в {one_event["entry"]}\nВход: {one_event["price"]}\nАдрес: {one_event["place"]}\n'
+            else:
+                text = f'!!! SOLDOUT !!!\nК сожалению, на это шоу мест больше нет, но Вы можете забронировать места или приобрести билеты на другое мероприятие. Листайте карусель.\n\nДата и время: {one_event["date"]} в {one_event["start"]}\nСбор гостей в {one_event["entry"]}\nВход: {one_event["price"]}\nАдрес: {one_event["place"]}\n'
+            await callback.message.answer_photo(
+                photo=one_event['photo'],
+                caption=text,
+                reply_markup=create_pag_kb(pag=pag, event_id=id_list_all[string - 1]))
             # Устанавливаем состояние ожидания выбора мероприятия
             await state.set_state(FSMFillForm.event_choosing)
-            await state.update_data(id_list=id_list)
-    else:
-        await callback.message.answer(f"Упс! Кажется, мест нет.\nСкорее всего все места на мероприятие забронированы, либо на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
+            await state.update_data(id_list=id_list, id_list_other=id_list_other, id_list_all=id_list_all, string=string)
+        elif len(id_list_other) != 0 and len(id_list) == 0:
+            one_other_event = select_one_other_event(id_list_all[string - 1])
+            pag = f'{string}/{len(id_list_all)}'
+            await callback.message.delete()
+            text = f'{one_other_event["description"]}\nДата и время: {one_other_event["date"]} в {one_other_event["time"]}\nАдрес: {one_other_event["place"]}'
+            await callback.message.answer_photo(
+                photo=one_other_event['photo'],
+                caption=text,
+                reply_markup=create_pag_kb_url(pag=pag, url=one_other_event['url']))
+        else:
+            one_event = select_one_event(id_list_all[string - 1])
+            pag = f'{string}/{len(id_list_all)}'
+            await callback.message.delete()
+            if one_event['capacity'] != 0:
+                text = f'{one_event["description"]}\nДата и время: {one_event["date"]} в {one_event["start"]}\nСбор гостей в {one_event["entry"]}\nВход: {one_event["price"]}\nАдрес: {one_event["place"]}\n'
+            else:
+                text = f'!!! SOLDOUT !!!\nК сожалению, на это шоу мест больше нет, но Вы можете забронировать места или приобрести билеты на другое мероприятие. Листайте карусель.\n\nДата и время: {one_event["date"]} в {one_event["start"]}\nСбор гостей в {one_event["entry"]}\nВход: {one_event["price"]}\nАдрес: {one_event["place"]}\n'
+            await callback.message.answer_photo(
+                photo=one_event['photo'],
+                caption=text,
+                reply_markup=create_pag_kb(pag=pag, event_id=id_list_all[string - 1]))
+            # Устанавливаем состояние ожидания выбора мероприятия
+            await state.set_state(FSMFillForm.event_choosing)
+            await state.update_data(id_list=id_list, id_list_other=id_list_other, id_list_all=id_list_all, string=string)
 
 
-# Этот хэндлер будет срабатывать, если введен корректный номер мероприятия
-@router.message(StateFilter(FSMFillForm.event_choosing),
-            lambda x: x.text.isdigit() and 1 <= int(x.text))
-async def process_event_choosing(message: Message, state: FSMContext):
+
+# Этот хэндлер будет срабатывать на нажатие инлайн-кнопки "вперед"
+# во время ввыбора мероприятия
+@router.callback_query(Text(text='forward'), StateFilter(FSMFillForm.event_choosing))
+async def process_forward_press(callback: CallbackQuery, state: FSMContext):
     db = await state.get_data()
     id_list = db['id_list']
-    if int(message.text) in id_list:
-        event_db = select_one_event(int(message.text))
-        await message.answer(text=f'Вы выбрали мероприятие: "{event_db["name"]}"\n'
-                                f'На какое количество гостей вы хотите забронировать места ?\n\n'
-                                f'Чтобы прервать процесс бронирования введите команду - /cancel')
-        # Cохраняем название мероприятия в хранилище по ключу "event"
-        name = event_db['name']
-        date = event_db['date']
-        place = event_db['place']
-        entry = event_db['entry']
-        start = event_db['start']
-        photo = event_db['photo']
-        id = int(event_db['id'])
-        await state.update_data(name=name, date=date, place=place, entry=entry, start=start, id=id, photo=photo)
-        # Устанавливаем состояние ожидания выбора количества гостей
-        await state.set_state(FSMFillForm.guests_choosing)
+    id_list_other = db['id_list_other']
+    id_list_all = db['id_list_all']
+    string=int(db['string'])
+    if string < len(id_list_all):
+        string += 1
+    elif string == len(id_list_all):
+        string = 1
+    if id_list_all[string - 1] in id_list:
+        one_event = select_one_event(id_list_all[string - 1])
+        pag = f'{string}/{len(id_list_all)}'
+        await callback.message.delete()
+        await state.update_data(string=string)
+        if one_event['capacity'] != 0:
+            text = f'{one_event["description"]}\nДата и время: {one_event["date"]} в {one_event["start"]}\nСбор гостей в {one_event["entry"]}\nВход: {one_event["price"]}\nАдрес: {one_event["place"]}\n'
+        else:
+            text = f'!!! SOLDOUT !!!\nК сожалению, на это шоу мест больше нет, но Вы можете забронировать места или приобрести билеты на другое мероприятие. Листайте карусель.\n\nДата и время: {one_event["date"]} в {one_event["start"]}\nСбор гостей в {one_event["entry"]}\nВход: {one_event["price"]}\nАдрес: {one_event["place"]}\n'
+        await callback.message.answer_photo(
+            photo=one_event['photo'],
+            caption=text,
+            reply_markup=create_pag_kb(pag=pag, event_id=id_list[string - 1]))
     else:
-        await message.answer(text=f'Введен не верный код мероприятия, попробуйте еще раз\n\n'
+        one_other_event = select_one_other_event(id_list_all[string - 1])
+        pag = f'{string}/{len(id_list_all)}'
+        await callback.message.delete()
+        text = f'{one_other_event["description"]}\nДата и время: {one_other_event["date"]} в {one_other_event["time"]}\nАдрес: {one_other_event["place"]}'
+        await state.update_data(string=string)
+        await callback.message.answer_photo(
+            photo=one_other_event['photo'],
+            caption=text,
+            reply_markup=create_pag_kb_url(pag=pag, url=one_other_event['url']))
+
+
+# Этот хэндлер будет срабатывать на нажатие инлайн-кнопки "назад"
+# во время ввыбора мероприятия
+@router.callback_query(Text(text='backward'), StateFilter(FSMFillForm.event_choosing))
+async def process_backward_press(callback: CallbackQuery,state: FSMContext):
+    db = await state.get_data()
+    id_list = db['id_list']
+    id_list_other = db['id_list_other']
+    id_list_all = db['id_list_all']
+    string=int(db['string'])
+    if string > 1:
+        string -= 1
+    elif string == 1:
+        string = int(len(id_list_all))
+    if id_list_all[string - 1] in id_list:
+        one_event = select_one_event(id_list_all[string - 1])
+        pag = f'{string}/{len(id_list_all)}'
+        await callback.message.delete()
+        await state.update_data(string=string)
+        if one_event['capacity'] != 0:
+            text = f'{one_event["description"]}\nДата и время: {one_event["date"]} в {one_event["start"]}\nСбор гостей в {one_event["entry"]}\nВход: {one_event["price"]}\nАдрес: {one_event["place"]}\n'
+        else:
+            text = f'!!! SOLDOUT !!!\nК сожалению, на это шоу мест больше нет, но Вы можете забронировать места или приобрести билеты на другое мероприятие. Листайте карусель.\n\nДата и время: {one_event["date"]} в {one_event["start"]}\nСбор гостей в {one_event["entry"]}\nВход: {one_event["price"]}\nАдрес: {one_event["place"]}\n'
+        await callback.message.answer_photo(
+            photo=one_event['photo'],
+            caption=text,
+            reply_markup=create_pag_kb(pag=pag, event_id=id_list[string - 1]))
+    else:
+        one_other_event = select_one_other_event(id_list_all[string - 1])
+        pag = f'{string}/{len(id_list_all)}'
+        await callback.message.delete()
+        text = f'{one_other_event["description"]}\nДата и время: {one_other_event["date"]} в {one_other_event["time"]}\nАдрес: {one_other_event["place"]}'
+        await state.update_data(string=string)
+        await callback.message.answer_photo(
+            photo=one_other_event['photo'],
+            caption=text,
+            reply_markup=create_pag_kb_url(pag=pag, url=one_other_event['url']))
+
+# Этот хэндлер будет срабатывать, если введен корректный номер мероприятия
+@router.callback_query(Text(text=[str(i()) for i in [lambda x = x: x for x in range(1, 5000)]]), StateFilter(FSMFillForm.event_choosing))
+async def process_event_choosing(callback: CallbackQuery,state: FSMContext):
+    db = await state.get_data()
+    id_list = db['id_list']
+    if int(callback.message.reply_markup.inline_keyboard[0][0].callback_data) in id_list:
+        event_db = select_one_event(int(callback.message.reply_markup.inline_keyboard[0][0].callback_data))
+        if event_db['capacity'] != 0:
+            await callback.message.delete()
+            await callback.message.answer(text=f'Вы выбрали мероприятие: "{event_db["name"]}"\n'
+                                    f'На какое количество гостей вы хотите забронировать места ?\n\n'
+                                    f'Чтобы прервать процесс бронирования введите команду - /cancel')
+            # Cохраняем название мероприятия в хранилище по ключу "event"
+            name = event_db['name']
+            date = event_db['date']
+            place = event_db['place']
+            entry = event_db['entry']
+            start = event_db['start']
+            photo = event_db['photo']
+            id = int(event_db['id'])
+            await state.update_data(name=name, date=date, place=place, entry=entry, start=start, id=id, photo=photo)
+            # Устанавливаем состояние ожидания выбора количества гостей
+            await state.set_state(FSMFillForm.guests_choosing)
+        else:
+            await callback.message.answer(text=f'На мероприятие: "{event_db["name"]}" все места забронированы, выберите другое мероприятие\n\n'
+                                    f'Чтобы прервать процесс бронирования введите команду - /cancel')
+    else:
+        await callback.message.answer(text=f'Введен не верный код мероприятия, попробуйте еще раз\n\n'
                                 f'Чтобы прервать процесс бронирования введите команду - /cancel')
 
 
@@ -451,10 +593,11 @@ async def process_guests_choosing(message: Message, state: FSMContext):
                  f'<b>Время сбора гостей {db["entry"]}</b>\n<b>Начало {db["start"]}\n</b>'
                  f'Пожалуйста, приходите ко времени сбора гостей, чтобы заказать еду и напитки,'
                  f' а также насладиться классной музыкой и атмосферой перед шоу 🍷\n\n'
-                 f'<i>Обратите внимание: количество столиков и мест в зале не всегда эквивалентно количеству броней.</i>'
-                 f'<i> Для того, чтобы наверняка сидеть вместе со своими друзьями, пожалуйста, приходите ко времени сбора гостей.</i>'
-                 f'<i> Иногда мы подсаживаем зрителей друг к другу, чтобы сделать рассадку более театральной.</i>'
-                 f'<i> Благодарим за понимание.\n\nЕсли вдруг у вас остались вопросы, вы можете написать в личные сообщения tg: @violetta_hus</i>\n\n'
+                 f'<i>Немного правил: рассадку в зале осуществляет администратор. Количество мест за столиком не всегда эквивалентно количеству мест в вашей брони. </i>'
+                 f'<i>Для сохранения театральной рассадки мы подсаживаем зрителей друг к другу. Надеемся на ваше понимание.</i>\n'
+                 f'<b><i>Для того, чтобы наверняка сидеть вместе со своими друзьями, пожалуйста, приходите ко времени сбора гостей.</i></b>\n'
+                 f'<i>В случае, если вы не придёте бронирование будет аннулировано в момент начала мероприятия, а ваши места предоставлены другим зрителям.</i> ⚠️\n\n'
+                 f'<i>Если остались вопросы gbibnt: @violetta_hus</i>\n\n'
                  f'Чтобы отменить бронь введите команду\n/cancelreservation',
                  parse_mode='HTML')
     else:
@@ -1094,7 +1237,15 @@ async def del_event(message: Message):
 # Этот хэндлер будет срабатывать на отправку команды /editevent
 # и отправлять в чат список мероприятий
 @router.message(Command(commands='editevent'), StateFilter(default_state), IsAdmin(config.tg_bot.admin_ids))
-async def process_editevent_command(message: Message, state: FSMContext):
+async def process_choose_editevent_command(message: Message, state: FSMContext):
+    await message.answer(text='Какое мероприятие вы хотите изменить?', reply_markup=choose_edit_event_kb())
+
+
+# Этот хэндлер будет срабатывать на callback bot_edit_event
+# и переводить бота в состояние ожидания выбора мероприятия
+@router.callback_query(Text(text='bot_edit_event'), StateFilter(default_state))
+async def process_choose_command(callback: CallbackQuery, state: FSMContext):
+    await callback.message.delete()
     events_list = []
     event_db = select_event_db()
     num = 1
@@ -1112,11 +1263,11 @@ async def process_editevent_command(message: Message, state: FSMContext):
             num += 1
         events = f'\n\n'.join(events_list)
         text = f"{events}\n\n<i>ВВЕДИТЕ КОД МЕРОПРИЯТИЯ, В КОТОРОЕ ХОТИТЕ ВНЕСТИ ИЗМЕНЕНИЯ</i>❗️\n\nЧтобы прервать процесса изменения мероприятия, введите команду - /cancel"
-        await message.answer(text=text, parse_mode='HTML')
+        await callback.message.answer(text=text, parse_mode='HTML')
         # Устанавливаем состояние ожидания выбора мероприятия
         await state.set_state(FSMEditEvent.choose_event)
     else:
-        await message.answer(text='Мероприятий пока что нет')
+        await callback.message.answer(text='Мероприятий пока что нет')
 
 
 # Этот хэндлер будет сохранять id мероприятия и ожидать ввод раздела, в который необходимо внести изменения
@@ -1152,7 +1303,7 @@ async def process_edit_event(message: Message, state: FSMContext):
 
 
 # Этот хэндлер будет срабатывать, если во время
-# удаления мероприятия будет введено что-то некорректное
+# изменения мероприятия будет введено что-то некорректное
 @router.message(StateFilter(FSMEditEvent.choose_event))
 async def del_event(message: Message):
     await message.answer(f'Введены не корректные данные, чтобы выбрать мероприятие, '
@@ -1397,6 +1548,268 @@ async def process_edit_photo_event(message: Message, state: FSMContext):
     else:
         await message.answer(f'Отправленное сообщение не является картинкой, отправте картинку афиши\n'
                              f'Чтобы прервать процесса изменения мероприятия, введите команду - /cancel')
+
+
+
+
+
+
+
+
+
+# Этот хэндлер будет срабатывать на callback bot_edit_event
+# и переводить бота в состояние ожидания выбора мероприятия
+@router.callback_query(Text(text='other_edit_event'), StateFilter(default_state))
+async def process_choose_command(callback: CallbackQuery, state: FSMContext):
+    await callback.message.delete()
+    events_list = []
+    event_db = select_other_event_db()
+    num = 1
+    if len(event_db) != 0:
+        for event in event_db:
+            events_list.append(f'{num}) Название мероприятия: {event["name"]}\n'
+                               f'Краткое описание мероприятия: {event["description"]}\n'
+                               f'Дата проведения: {event["date"]}\n'
+                               f'Время проведения: {event["time"]}\n'
+                               f'Место проведения и адрес: {event["place"]}\n'
+                               f'<b>КОД МЕРОПРИЯТИЯ 👉🏻 {event["id"]}</b>')
+            num += 1
+        events = f'\n\n'.join(events_list)
+        text = f"{events}\n\n<i>ВВЕДИТЕ КОД МЕРОПРИЯТИЯ, В КОТОРОЕ ХОТИТЕ ВНЕСТИ ИЗМЕНЕНИЯ</i>❗️\n\nЧтобы прервать процесса изменения мероприятия, введите команду - /cancel"
+        await callback.message.answer(text=text, parse_mode='HTML')
+        # Устанавливаем состояние ожидания выбора мероприятия
+        await state.set_state(FSMEditEvent.choose_other_event)
+    else:
+        await callback.message.answer(text='Мероприятий пока что нет')
+
+
+# Этот хэндлер будет сохранять id мероприятия и ожидать ввод раздела, в который необходимо внести изменения
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMEditEvent.choose_other_event),
+lambda x: x.text.isdigit() and 1 <= int(x.text))
+async def process_edit_other_event(message: Message, state: FSMContext):
+    id_list = select_other_event_id()
+    if int(message.text) in id_list:
+        # Cохраняем id мероприятия в хранилище по ключу "id"
+        id = int(message.text)
+        event = select_one_other_event(id)
+        await state.update_data(id=id, name=event["name"], description=event["description"], date=event["date"],
+                                time=event["time"], place=event["place"], photo=event["photo"], url=event["url"])
+        await message.answer(text=f'Вы выбрали мероприятие: {event["name"]}\n\n'
+                                f'Отправьте номер раздела, в который хотите внести изменение:\n'
+                                f'1 - Название мероприятия\n'
+                                f'2 - Краткое описание мероприятия\n'
+                                f'3 - Дата проведения\n'
+                                f'4 - Время проведения\n'
+                                f'5 - Место проведения и адрес\n'
+                                f'6 - Афиша\n'
+                                f'7 - Ссылка\n\n'
+                                f'Чтобы прервать процесса изменения мероприятия, введите команду - /cancel')
+        # Устанавливаем состояние ожидания выбора изменения
+        await state.set_state(FSMEditEvent.choose_other_change)
+    else:
+        await message.answer(f'Введены не корректные данные, чтобы выбрать мероприятие, '
+                             f'в которое вы хотите внести изменения, введите код мероприятия\n'
+                             f'Если вы хотите прервать процесс редактирования - отправьте команду\n/cancel')
+
+
+# Этот хэндлер будет срабатывать, если во время
+# изменения мероприятия будет введено что-то некорректное
+@router.message(StateFilter(FSMEditEvent.choose_other_event))
+async def del_event(message: Message):
+    await message.answer(f'Введены не корректные данные, чтобы выбрать мероприятие, '
+                         f'в которое вы хотите внести изменения, введите код мероприятия\n'
+                         f'Если вы хотите прервать процесс редактирования - отправьте команду\n/cancel')
+
+
+# Этот хэндлер будет выбирать раздел, в который необходимо внести изменения
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMEditEvent.choose_other_change),
+lambda x: x.text.isdigit() and 1 <= int(x.text) <= 7)
+async def process_edit_event(message: Message, state: FSMContext):
+    event = await state.get_data()
+    if int(message.text) == 1:
+        await message.answer(f'Текущее название:\n{event["name"]}\n\n'
+                             f'<i>ВВЕДИТЕ НОВОЕ НАЗВАНИЕ МЕРОПРИЯТИЯ</i>❗️\n\n'
+                             f'Чтобы прервать процесса изменения мероприятия, введите команду - /cancel',
+                             parse_mode='HTML')
+        # Устанавливаем состояние изменения названия
+        await state.set_state(FSMEditEvent.edit_other_name)
+    elif int(message.text) == 2:
+        await message.answer(f'Текущее краткое описание:\n{event["description"]}\n\n'
+                             f'<i>ВВЕДИТЕ НОВОЕ КРАТКОЕ ОПИСАНИЕ</i>❗️\n\n'
+                             f'Чтобы прервать процесса изменения мероприятия, введите команду - /cancel',
+                             parse_mode='HTML')
+        # Устанавливаем состояние ожидания выбора изменения
+        await state.set_state(FSMEditEvent.edit_other_description)
+    elif int(message.text) == 3:
+        await message.answer(f'Текущая дата: {event["date"]}\n\n'
+                             f'<i>ВВЕДИТЕ НОВУЮ ДАТУ ПРОВЕДЕНИЯ</i>❗️\n\n'
+                             f'Чтобы прервать процесса изменения мероприятия, введите команду - /cancel',
+                             parse_mode='HTML')
+        #  Устанавливаем состояние ожидания выбора изменения
+        await state.set_state(FSMEditEvent.edit_other_date)
+    elif int(message.text) == 4:
+        await message.answer(f'Текущее время начала мероприятия: {event["time"]}\n\n'
+                             f'<i>ВВВЕДИТЕ НОВОЕ ВРЕМЯ НАЧАЛА МЕРОПРИЯТИЯ</i>❗️\n\n'
+                             f'Чтобы прервать процесса изменения мероприятия, введите команду - /cancel',
+                             parse_mode='HTML')
+        # Устанавливаем состояние ожидания выбора изменения
+        await state.set_state(FSMEditEvent.edit_time)
+    elif int(message.text) == 5:
+        await message.answer(f'Текущее место проведения и адрес:\n{event["place"]}\n\n'
+                             f'<i>ВВЕДИТЕ НОВОЕ МЕСТО ПРОВЕДЕНИЯ И АДРЕС</i>❗️\n\n'
+                             f'Чтобы прервать процесса изменения мероприятия, введите команду - /cancel',
+                             parse_mode='HTML')
+        # Устанавливаем состояние ожидания выбора изменения
+        await state.set_state(FSMEditEvent.edit_other_place)
+    elif int(message.text) == 6:
+        await message.answer_photo(photo=event["photo"], caption=f'Выше представлена текущая афиша\n\n'
+                             f'<i>В ОТВЕТ НА ЭТО СООБЩЕНИЕ ОТПРАВЬТЕ КАРТИНКУ С НОВОЙ АФИШЕЙ</i>❗️\n\n'
+                             f'Чтобы прервать процесса изменения мероприятия, введите команду - /cancel',
+                             parse_mode='HTML')
+        # Устанавливаем состояние ожидания выбора изменения
+        await state.set_state(FSMEditEvent.edit_other_photo)
+    elif int(message.text) == 7:
+        await message.answer(f'Текущее ссылка мероприятия: {event["url"]}\n\n'
+                             f'<i>ВВВЕДИТЕ НОВУЮ ССЫЛКУ НА МЕРОПРИЯТИЕ</i>❗️\n\n'
+                             f'Чтобы прервать процесса изменения мероприятия, введите команду - /cancel',
+                             parse_mode='HTML')
+        # Устанавливаем состояние ожидания выбора изменения
+        await state.set_state(FSMEditEvent.edit_url)
+    else:
+        await message.answer(f'Введите номер раздела от 1 до 7\n\n'
+                             f'Если вы хотите прервать процесс редактирования - '
+                             f'отправьте команду /cancel')
+
+
+# Этот хэндлер будет срабатывать, если во время
+# редактирования мероприятия будет введено что-то некорректное
+@router.message(StateFilter(FSMEditEvent.choose_other_change))
+async def edit_event(message: Message):
+    await message.answer(f'Введены не корректные данные, чтобы выбрать раздел, '
+                         f'в который вы хотите внести изменения, введите номер раздела от 1 до 7\n\n'
+                         f'Если вы хотите прервать процесс редактирования - отправьте команду\n/cancel')
+
+
+# Этот хэндлер будет изменять название мероприятия
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMEditEvent.edit_other_name))
+async def process_edit_name_other_event(message: Message, state: FSMContext):
+    new_name = message.text
+    if '"' in new_name or "'" in new_name:
+        await message.answer(f'Нахождение ковычек в название мероприятия не допустимо, исправьте название\n\n'
+                             f'Чтобы прервать процесса изменения мероприятия, введите команду - /cancel')
+    else:
+        db = await state.get_data()
+        id = db["id"]
+        old_name = db["name"]
+        edit_name_other_event(new_name, id)
+        await message.answer('Название мероприятия изменено')
+        # Завершаем машину состояний
+        await state.clear()
+
+
+# Этот хэндлер будет изменять краткое описание
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMEditEvent.edit_other_description))
+async def process_edit_description_other_event(message: Message, state: FSMContext):
+    new_description = message.text
+    if '"' in new_description or "'" in new_description:
+        await message.answer(f'Нахождение ковычек в описании мероприятия не допустимо, исправьте описание\n\n'
+                             f'Чтобы прервать процесса изменения мероприятия, введите команду - /cancel')
+    else:
+        db = await state.get_data()
+        id = db["id"]
+        edit_description_other_event(new_description, id)
+        await message.answer('Краткое описание изменено')
+        # Завершаем машину состояний
+        await state.clear()
+
+
+# Этот хэндлер будет изменять дату проведения
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMEditEvent.edit_other_date))
+async def process_edit_date_other_event(message: Message, state: FSMContext):
+    new_date = message.text
+    if not check_date(new_date):
+        await message.answer(f'Дата введена не в верном формате, введите дату в формате:\ndd.mm.yyyy\n\n'
+                             f'Чтобы прервать процесса изменения мероприятия, введите команду - /cancel')
+    else:
+        db = await state.get_data()
+        id = db["id"]
+        edit_date_other_event(new_date, id)
+        await message.answer('Дата проведения изменена')
+        # Завершаем машину состояний
+        await state.clear()
+
+
+# Этот хэндлер будет изменять время начала мероприятия
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMEditEvent.edit_time))
+async def process_edit_time_event(message: Message, state: FSMContext):
+    new_start = message.text
+    if not check_time(new_start):
+        await message.answer(f'Время начала мероприятия введено не в верном формате, введите время в формате:\nhh:mm\n\n'
+                             f'Чтобы прервать процесса изменения мероприятия, введите команду - /cancel')
+    else:
+        db = await state.get_data()
+        id = db["id"]
+        edit_time_other_event(new_start, id)
+        await message.answer('Время начала мероприятия изменено')
+        # Завершаем машину состояний
+        await state.clear()
+
+
+# Этот хэндлер будет изменять место и адрес проведения
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMEditEvent.edit_other_place))
+async def process_edit_place_other_event(message: Message, state: FSMContext):
+    new_place = message.text
+    if '"' in new_place or "'" in new_place:
+        await message.answer(f'Нахождение ковычек в названии места проведения и адресе не допустимо,'
+                             f' исправьте название места проведения и адрес\n\n'
+                             f'Чтобы прервать процесса изменения мероприятия, введите команду - /cancel')
+    else:
+        db = await state.get_data()
+        id = db["id"]
+        edit_place_other_event(new_place, id)
+        await message.answer('Место и адрес проведения изменено')
+        # Завершаем машину состояний
+        await state.clear()
+
+
+# Этот хэндлер будет изменять афишу
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMEditEvent.edit_other_photo))
+async def process_edit_photo_event(message: Message, state: FSMContext):
+    if message.photo:
+        db = await state.get_data()
+        new_photo = message.photo[0].file_id
+        event_id = db["id"]
+        edit_photo_other_event(new_photo, event_id)
+        await message.answer('Афиша изменена')
+        # Завершаем машину состояний
+        await state.clear()
+    else:
+        await message.answer(f'Отправленное сообщение не является картинкой, отправте картинку афиши\n'
+                             f'Чтобы прервать процесса изменения мероприятия, введите команду - /cancel')
+
+
+# Этот хэндлер будет изменять ссылку на мероприятие
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMEditEvent.edit_url))
+async def process_edit_price_event(message: Message, state: FSMContext):
+    url = message.text
+    if '"' in url or "'" in url:
+        await message.answer(f'Нахождение ковычек в ссылке не допустимо, исправьте ссылку\n\n'
+                             f'Чтобы прервать процесса изменения мероприятия, введите команду - /cancel')
+    else:
+        db = await state.get_data()
+        id = db["id"]
+        edit_url_other_event(url, id)
+        await message.answer('Ссылка изменена')
+        # Завершаем машину состояний
+        await state.clear()
+
+
+
+
+
+
+
+
 
 
 # Этот хэндлер будет срабатывать на отправку команды /sendnewsletter
@@ -1955,7 +2368,7 @@ async def process_draw_choosing(message: Message, state: FSMContext):
             insert_partaker_draw(message.from_user.id, int(message.text), message.from_user.username, message.from_user.full_name)
             partaker_id = select_one_partaker_id(message.from_user.id, int(message.text))
             draw_end = draw_datetime(f'{draw["date"]} {draw["time"]}')
-            await message.answer_photo(photo=draw["photo"], caption=f'Вы участвуете в розыгрыше:\n{draw["name"].upper()}\nВам присвоен номер 👉🏻<b>{str(partaker_id["id"]).upper()}</b>❗️❗️❗️\nОжидайте результатов:\n{draw_end}', parse_mode='HTML')
+            await message.answer_photo(photo=draw["photo"], caption=f'Вы участвуете в розыгрыше:\n{draw["name"].upper()}\nВам присвоен номер 👉🏻<b>{str(partaker_id["id"]).upper()}</b>❗️❗️❗️\nОжидайте результатов:\n{draw_end}\n\nСледите за обновления в нашем канале @locostandup и сообществе вконтакте vk.com/locostandup 👌🏻', parse_mode='HTML')
             await state.clear()
     else:
         await message.answer(text=f'Введен не верный код розыгрыша, попробуйте еще раз\n\n'
