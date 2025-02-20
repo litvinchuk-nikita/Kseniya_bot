@@ -273,8 +273,11 @@ async def process_choose_command(message: Message, state: FSMContext):
     else:
         print('Такой id уже добавлен')
     id_list = []
+    date_list = []
     id_list_other = []
+    date_list_other = []
     id_list_all = []
+    date_list_all = []
     event_db = select_event_db()
     event_db_2 = select_other_event_db()
     string = 1
@@ -286,6 +289,7 @@ async def process_choose_command(message: Message, state: FSMContext):
                         del_event_db(event["id"])
                         cancel_reserv(event["name"])
                     continue
+                date_list.append({'id': event["id"], 'date': event["date"]})
                 id_list.append(event["id"])
             except:
                 print("При проверке мероприятия произошла ошибка")
@@ -296,16 +300,21 @@ async def process_choose_command(message: Message, state: FSMContext):
                     if event_date(event["date"]) <= date.today():
                         del_other_event_db(event["id"])
                     continue
+                date_list_other.append({'id': event["id"], 'date': event["date"]})
                 id_list_other.append(event["id"])
             except:
                 print("При проверке мероприятия произошла ошибка")
-    id_list_all = id_list + id_list_other
+    date_list_all = date_list + date_list_other
+    date_list_all = sorted(date_list_all, key=lambda x: datetime.strptime(x['date'], '%d.%m.%Y'), reverse=False)
+    for i in date_list_all:
+        id_list_all.append(i['id'])
     if len(id_list) == 0 and len(id_list_other) == 0:
         await message.answer(f"Упс! Кажется, на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
     else:
-        if len(id_list) != 0 and len(id_list_other) == 0:
+        if id_list_all[string - 1] in id_list:
             one_event = select_one_event(id_list_all[string - 1])
             pag = f'{string}/{len(id_list_all)}'
+            await state.update_data(string=string)
             if one_event['capacity'] != 0:
                 text = f'{one_event["description"]}\nДата и время: {one_event["date"]} в {one_event["start"]}\nСбор гостей в {one_event["entry"]}\nВход: {one_event["price"]}\nАдрес: {one_event["place"]}\n'
             else:
@@ -314,31 +323,18 @@ async def process_choose_command(message: Message, state: FSMContext):
                 photo=one_event['photo'],
                 caption=text,
                 reply_markup=create_pag_kb(pag=pag, event_id=id_list_all[string - 1]))
-            # Устанавливаем состояние ожидания выбора мероприятия
-            await state.set_state(FSMFillForm.event_choosing)
-            await state.update_data(id_list=id_list, id_list_other=id_list_other, id_list_all=id_list_all, string=string)
-        elif len(id_list_other) != 0 and len(id_list) == 0:
+        else:
             one_other_event = select_one_other_event(id_list_all[string - 1])
             pag = f'{string}/{len(id_list_all)}'
             text = f'{one_other_event["description"]}\nДата и время: {one_other_event["date"]} в {one_other_event["time"]}\nАдрес: {one_other_event["place"]}'
+            await state.update_data(string=string)
             await message.answer_photo(
                 photo=one_other_event['photo'],
                 caption=text,
                 reply_markup=create_pag_kb_url(pag=pag, url=one_other_event['url']))
-        else:
-            one_event = select_one_event(id_list_all[string - 1])
-            pag = f'{string}/{len(id_list_all)}'
-            if one_event['capacity'] != 0:
-                text = f'{one_event["description"]}\nДата и время: {one_event["date"]} в {one_event["start"]}\nСбор гостей в {one_event["entry"]}\nВход: {one_event["price"]}\nАдрес: {one_event["place"]}\n'
-            else:
-                text = f'!!! SOLDOUT !!!\nК сожалению, на это шоу мест больше нет, но Вы можете забронировать места или приобрести билеты на другое мероприятие. Листайте карусель.\n\nДата и время: {one_event["date"]} в {one_event["start"]}\nСбор гостей в {one_event["entry"]}\nВход: {one_event["price"]}\nАдрес: {one_event["place"]}\n'
-            await message.answer_photo(
-                photo=one_event['photo'],
-                caption=text,
-                reply_markup=create_pag_kb(pag=pag, event_id=id_list_all[string - 1]))
-            # Устанавливаем состояние ожидания выбора мероприятия
-            await state.set_state(FSMFillForm.event_choosing)
-            await state.update_data(id_list=id_list, id_list_other=id_list_other, id_list_all=id_list_all, string=string)
+        # Устанавливаем состояние ожидания выбора мероприятия
+        await state.set_state(FSMFillForm.event_choosing)
+        await state.update_data(id_list=id_list, id_list_other=id_list_other, id_list_all=id_list_all, string=string)
 
 
 # Этот хэндлер будет срабатывать на callback choose
@@ -352,8 +348,11 @@ async def process_choose_command(callback: CallbackQuery, state: FSMContext):
     else:
         print('Такой id уже добавлен')
     id_list = []
+    date_list = []
     id_list_other = []
+    date_list_other = []
     id_list_all = []
+    date_list_all = []
     event_db = select_event_db()
     event_db_2 = select_other_event_db()
     string = 1
@@ -365,6 +364,7 @@ async def process_choose_command(callback: CallbackQuery, state: FSMContext):
                         del_event_db(event["id"])
                         cancel_reserv(event["name"])
                     continue
+                date_list.append({'id': event["id"], 'date': event["date"]})
                 id_list.append(event["id"])
             except:
                 print("При проверке мероприятия произошла ошибка")
@@ -375,17 +375,22 @@ async def process_choose_command(callback: CallbackQuery, state: FSMContext):
                     if event_date(event["date"]) <= date.today():
                         del_other_event_db(event["id"])
                     continue
+                date_list_other.append({'id': event["id"], 'date': event["date"]})
                 id_list_other.append(event["id"])
             except:
                 print("При проверке мероприятия произошла ошибка")
-    id_list_all = id_list + id_list_other
+    date_list_all = date_list + date_list_other
+    date_list_all = sorted(date_list_all, key=lambda x: datetime.strptime(x['date'], '%d.%m.%Y'), reverse=False)
+    for i in date_list_all:
+        id_list_all.append(i['id'])
     if len(id_list) == 0 and len(id_list_other) == 0:
-        await callback.message.answer(f"Упс! Кажется, на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
+        await message.answer(f"Упс! Кажется, на данный момент запланированных мероприятий нет.\nСледите за анонсами и новостями в нашем канале @locostandup")
     else:
-        if len(id_list) != 0 and len(id_list_other) == 0:
+        if id_list_all[string - 1] in id_list:
             one_event = select_one_event(id_list_all[string - 1])
             pag = f'{string}/{len(id_list_all)}'
             await callback.message.delete()
+            await state.update_data(string=string)
             if one_event['capacity'] != 0:
                 text = f'{one_event["description"]}\nДата и время: {one_event["date"]} в {one_event["start"]}\nСбор гостей в {one_event["entry"]}\nВход: {one_event["price"]}\nАдрес: {one_event["place"]}\n'
             else:
@@ -394,30 +399,16 @@ async def process_choose_command(callback: CallbackQuery, state: FSMContext):
                 photo=one_event['photo'],
                 caption=text,
                 reply_markup=create_pag_kb(pag=pag, event_id=id_list_all[string - 1]))
-            # Устанавливаем состояние ожидания выбора мероприятия
-            await state.set_state(FSMFillForm.event_choosing)
-            await state.update_data(id_list=id_list, id_list_other=id_list_other, id_list_all=id_list_all, string=string)
-        elif len(id_list_other) != 0 and len(id_list) == 0:
+        else:
             one_other_event = select_one_other_event(id_list_all[string - 1])
             pag = f'{string}/{len(id_list_all)}'
             await callback.message.delete()
             text = f'{one_other_event["description"]}\nДата и время: {one_other_event["date"]} в {one_other_event["time"]}\nАдрес: {one_other_event["place"]}'
+            await state.update_data(string=string)
             await callback.message.answer_photo(
                 photo=one_other_event['photo'],
                 caption=text,
                 reply_markup=create_pag_kb_url(pag=pag, url=one_other_event['url']))
-        else:
-            one_event = select_one_event(id_list_all[string - 1])
-            pag = f'{string}/{len(id_list_all)}'
-            await callback.message.delete()
-            if one_event['capacity'] != 0:
-                text = f'{one_event["description"]}\nДата и время: {one_event["date"]} в {one_event["start"]}\nСбор гостей в {one_event["entry"]}\nВход: {one_event["price"]}\nАдрес: {one_event["place"]}\n'
-            else:
-                text = f'!!! SOLDOUT !!!\nК сожалению, на это шоу мест больше нет, но Вы можете забронировать места или приобрести билеты на другое мероприятие. Листайте карусель.\n\nДата и время: {one_event["date"]} в {one_event["start"]}\nСбор гостей в {one_event["entry"]}\nВход: {one_event["price"]}\nАдрес: {one_event["place"]}\n'
-            await callback.message.answer_photo(
-                photo=one_event['photo'],
-                caption=text,
-                reply_markup=create_pag_kb(pag=pag, event_id=id_list_all[string - 1]))
             # Устанавливаем состояние ожидания выбора мероприятия
             await state.set_state(FSMFillForm.event_choosing)
             await state.update_data(id_list=id_list, id_list_other=id_list_other, id_list_all=id_list_all, string=string)
@@ -449,7 +440,7 @@ async def process_forward_press(callback: CallbackQuery, state: FSMContext):
         await callback.message.answer_photo(
             photo=one_event['photo'],
             caption=text,
-            reply_markup=create_pag_kb(pag=pag, event_id=id_list[string - 1]))
+            reply_markup=create_pag_kb(pag=pag, event_id=id_list_all[string - 1]))
     else:
         one_other_event = select_one_other_event(id_list_all[string - 1])
         pag = f'{string}/{len(id_list_all)}'
@@ -487,7 +478,7 @@ async def process_backward_press(callback: CallbackQuery,state: FSMContext):
         await callback.message.answer_photo(
             photo=one_event['photo'],
             caption=text,
-            reply_markup=create_pag_kb(pag=pag, event_id=id_list[string - 1]))
+            reply_markup=create_pag_kb(pag=pag, event_id=id_list_all[string - 1]))
     else:
         one_other_event = select_one_other_event(id_list_all[string - 1])
         pag = f'{string}/{len(id_list_all)}'
@@ -536,7 +527,7 @@ async def process_event_choosing(callback: CallbackQuery,state: FSMContext):
 async def warning_not_event(message: Message):
     await message.answer(
         text=f'Вы находитесь в процессе бронирования мероприятия\n\n'
-             f'<i>ДЛЯ ВЫБОРА МЕРОПРИЯТИЯ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\n'
+             f'<i>ВЫБЕРИТЕ МЕРОПРИЯТИЕ, КОТОРОЕ ХОТИТЕ ПОСЕТИТЬ</i>❗️\n\n'
              'Если вы хотите прервать бронирование - '
              'отправьте команду /cancel', parse_mode='HTML')
 
@@ -597,7 +588,7 @@ async def process_guests_choosing(message: Message, state: FSMContext):
                  f'<i>Для сохранения театральной рассадки мы подсаживаем зрителей друг к другу. Надеемся на ваше понимание.</i>\n'
                  f'<b><i>Для того, чтобы наверняка сидеть вместе со своими друзьями, пожалуйста, приходите ко времени сбора гостей.</i></b>\n'
                  f'<i>В случае, если вы не придёте бронирование будет аннулировано в момент начала мероприятия, а ваши места предоставлены другим зрителям.</i> ⚠️\n\n'
-                 f'<i>Если остались вопросы gbibnt: @violetta_hus</i>\n\n'
+                 f'<i>Если остались вопросы пишите: @violetta_hus</i>\n\n'
                  f'Чтобы отменить бронь введите команду\n/cancelreservation',
                  parse_mode='HTML')
     else:
