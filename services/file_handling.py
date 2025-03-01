@@ -12,7 +12,7 @@ def event_date(date):
 
 
 def check_date(date):
-    add_id = re.fullmatch(r'^[0-3][0-9]\.[0-1][0-9]\.[2][0][2][3-9]$', date)
+    add_id = re.fullmatch(r'^[0-3][0-9]\.[0-1][0-9]\.[2][0][2][5-9]$', date)
     return True if add_id else False
 
 
@@ -29,5 +29,5 @@ def check_phone(phone):
 
 def draw_datetime(date):
     date_1 = datetime.strptime(date, '%d.%m.%Y %H:%M')
-    date_2 = date_1 + timedelta(hours=1)
+    date_2 = date_1 + timedelta(hours=3)
     return datetime.strftime(date_2, '%d.%m.%Y %H:%M')

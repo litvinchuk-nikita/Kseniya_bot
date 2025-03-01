@@ -186,15 +186,16 @@ async def send_message_interval(bot: Bot):
                 user_channel_status = await bot.get_chat_member(chat_id='@locostandup', user_id=int(win_user["user_id"]))
                 if user_channel_status.status != 'left':
                     win = True
-            await bot.send_photo(chat_id=win_user["user_id"], photo=draw["photo"], caption=f'ПОЗДРАВЛЯЕМ! 🎉\nВы победили в розыгрыше:\n<b>{draw["name"]}</b>\nПожалуйста, напишите @violetta_hus, чтобы получить выигрыш!', parse_mode='HTML')
-            await bot.send_photo(chat_id=6469407067, photo=draw["photo"], caption=f'В <b>{draw["name"]}</b> победил пользователь {win_user["username"]}, tg: {win_user["email"]}\nСкоро он свяжется с вами', parse_mode='HTML')
-            await bot.send_photo(chat_id=1328733978, photo=draw["photo"], caption=f'В <b>{draw["name"]}</b> победил пользователь {win_user["username"]}, tg: {win_user["email"]}\nСкоро он свяжется с вами', parse_mode='HTML')
+            await bot.send_photo(chat_id=win_user["user_id"], photo=draw["photo"], caption=f'{draw["name"]}\n🎉 🎉 🎉 ВЫ ВЫИГРАЛИ 2 БИЛЕТА!  ПОЗДРАВЛЯЕМ С ПОБЕДОЙ! 🥳🥳🥳\n\nПожалуйста, напишите нашему администратору @theycallmeevochka, чтобы получить билеты!\n\nСледите за обновлениями в нашем канале @locostandup и сообществе вконтакте vk.com/locostandup 👌🏻', parse_mode='HTML')
+            # await bot.send_photo(chat_id=6469407067, photo=draw["photo"], caption=f'В <b>{draw["name"]}</b> победил пользователь {win_user["username"]}, tg: {win_user["email"]}\nСкоро он свяжется с вами', parse_mode='HTML')
+            # await bot.send_photo(chat_id=1328733978, photo=draw["photo"], caption=f'В <b>{draw["name"]}</b> победил пользователь {win_user["username"]}, tg: {win_user["email"]}\nСкоро он свяжется с вами', parse_mode='HTML')
             # await bot.send_photo(chat_id=1799099725, photo=draw["photo"], caption=f'В <b>{draw["name"]}</b> победил пользователь {win_user["username"]}, tg: {win_user["email"]}\nСкоро он свяжется с вами', parse_mode='HTML')
+            # await bot.send_message(chat_id=1799099725, text=f'В <b>{draw["name"]}</b> победил пользователь {win_user["username"]}, tg: {win_user["email"]}\nСкоро он свяжется с вами', parse_mode='HTML')
             del_draw(draw["id"])
             id_list = select_id_list()
-            text = f'Результаты розыгрыша: {draw["photo"]}\nБот выбрал пользователя {win_user["username"]}, под номером {win_num}, который выполнил все условия!🎉 \nПоздравляем с победой!🥳 \n\nСовсем скоро администратор свяжется с вами и вышлет билеты 🎫\n\nОстальные участники, не расстраивайтесь! У нас часто проходят другие розыгрыши! Следите за обновления в нашем канале @locostandup и сообществе вконтакте vk.com/locostandup 👌🏻'
+            text = f'{draw["name"]}\nБот выбрал пользователя {win_user["username"]}, под номером {win_num}, который выполнил все условия!🎉 \nПоздравляем с победой!🥳\n\nОстальные участники, не расстраивайтесь! У нас часто проходят другие розыгрыши! Следите за обновлениями в нашем канале @locostandup и сообществе вконтакте vk.com/locostandup 👌🏻'
             for id in id_list:
-                if int(id) == int(win_user["user_id"]) or int(id) == 6469407067 or int(id) == 1328733978:
+                if int(id) == int(win_user["user_id"]):
                     continue
                 try:
                     await bot.send_photo(chat_id=id,
