@@ -197,7 +197,7 @@ async def process_cancel_command_state(message: Message, state: FSMContext):
 
 # Этот хэндлер будет срабатывать на команду "/cancel"
 # в состоянии удаления мероприятия
-@router.message(Command(commands='cancel'), StateFilter(FSMAdmin.cancel_event))
+@router.message(Command(commands='cancel'), StateFilter(FSMAdmin.cancel_event, FSMAdmin.cancel_other_event))
 async def process_cancel_command_state(message: Message, state: FSMContext):
     await message.answer(
         text=f'Удаление мероприятия отменено.')
@@ -1167,7 +1167,8 @@ async def process_choose_editevent_command(message: Message, state: FSMContext):
 # Этот хэндлер будет срабатывать на нажатие кнопки с отменой мероприятия в боте
 # и отправлять в чат список мероприятий
 @router.callback_query(Text(text='bot_cancel_event'), StateFilter(default_state))
-async def process_delevent_command(message: Message, state: FSMContext):
+async def process_delevent_command(callback: CallbackQuery, state: FSMContext):
+    await callback.message.delete()
     events_list = []
     id_list = []
     num = 1
@@ -1181,12 +1182,12 @@ async def process_delevent_command(message: Message, state: FSMContext):
             num += 1
         events = f'\n\n'.join(events_list)
         text = f"{events}\n\n<i>ЧТОБЫ ВЫБРАТЬ МЕРОПРИЯТИЕ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\nЧтобы прервать процесса отмены мероприятия, введите команду - /cancel"
-        await message.answer(text=text, parse_mode='HTML')
+        await callback.message.answer(text=text, parse_mode='HTML')
         # Устанавливаем состояние ожидания выбора мероприятия
         await state.set_state(FSMAdmin.cancel_event)
         await state.update_data(id_list=id_list)
     else:
-        await message.answer(text='Мероприятий пока что нет')
+        await callback.message.answer(text='Мероприятий пока что нет')
 
 
 # Этот хэндлер будет отпралять уведомления об отмене мероприятия и удалять мероприятие
@@ -1224,7 +1225,8 @@ async def process_add_event(message: Message, state: FSMContext, bot: Bot):
 # Этот хэндлер будет срабатывать на нажатие кнопки с отменой мероприятия со ссылкой
 # и отправлять в чат список мероприятий
 @router.callback_query(Text(text='other_cancel_event'), StateFilter(default_state))
-async def process_delevent_command(message: Message, state: FSMContext):
+async def process_delevent_command(callback: CallbackQuery, state: FSMContext):
+    await callback.message.delete()
     events_list = []
     id_list = []
     num = 1
@@ -1238,12 +1240,12 @@ async def process_delevent_command(message: Message, state: FSMContext):
             num += 1
         events = f'\n\n'.join(events_list)
         text = f"{events}\n\n<i>ЧТОБЫ ВЫБРАТЬ МЕРОПРИЯТИЕ ВВЕДИТЕ КОД МЕРОПРИЯТИЯ</i>❗️\n\nЧтобы прервать процесса отмены мероприятия, введите команду - /cancel"
-        await message.answer(text=text, parse_mode='HTML')
+        await callback.message.answer(text=text, parse_mode='HTML')
         # Устанавливаем состояние ожидания выбора мероприятия
-        await state.set_state(FSMAdmin.cancel_event)
+        await state.set_state(FSMAdmin.cancel_other_event)
         await state.update_data(id_list=id_list)
     else:
-        await message.answer(text='Мероприятий пока что нет')
+        await callback.message.answer(text='Мероприятий пока что нет')
 
 
 # Этот хэндлер будет отпралять уведомления об отмене мероприятия и удалять мероприятие
