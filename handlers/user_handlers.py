@@ -18,7 +18,8 @@ from database.database import (insert_event_db, insert_reserv_db, del_event_db, 
                                select_partaker_draw, insert_other_event_db, select_one_other_event,
                                select_other_event_db, del_other_event_db, edit_date_other_event, edit_name_other_event,
                                edit_description_other_event, edit_time_other_event, edit_place_other_event, edit_photo_other_event,
-                               edit_url_other_event, select_other_event_id)
+                               edit_url_other_event, select_other_event_id, del_draw, edit_name_draw, edit_date_draw, edit_time_draw,
+                               edit_photo_draw, insert_new_users, select_date_new_users)
 from keyboards.other_kb import (create_menu_kb, review_kb, send_review_kb, answer_review_kb, cancel_review_kb,
                                 send_review_kb_2, cancel_answer_kb, send_answer_kb, last_review_kb, newsletter_kb,
                                 draw_kb, choose_event_kb, url_event_kb, choose_add_event_kb, create_pag_kb, choose_edit_event_kb,
@@ -115,6 +116,13 @@ class FSMDraw(StatesGroup):
     draw_choosing = State()        # Состояние выбора розыгрыша
     add_draw = State()        # Состояние добавления розыгрыша
     add_photo_draw = State()        # Состояние добавления афиши розыгрыша
+    cancel_draw = State()       # Состояние отмены розыгрыша
+    choose_edit_draw = State()       # Состояние выбора розыгрыша
+    choose_change = State()      # Состояние выбора изменения
+    edit_name = State()          # Состояние изменения названия
+    edit_date = State()          # Состояние изменения даты
+    edit_time = State()          # Состояние изменения времени
+    edit_photo = State()         # Состояние изменения афиши
 
 
 # этот хэндлер будет срабатывать на команду "/start" -
@@ -124,7 +132,11 @@ async def process_start_cammand(message: Message, bot: Bot):
     id_list_newsletter = select_id_list()
     if str(message.from_user.id) not in id_list_newsletter:
         user_id = message.from_user.id
+        full_name = message.from_user.full_name
+        username = message.from_user.username
+        user_date = datetime.now().strftime('%d.%m.%Y')
         insert_id(user_id)
+        insert_new_users(user_id, full_name, username, user_date)
     else:
         print('Такой id уже добавлен')
     text = f"{LEXICON['/start']}"
@@ -265,6 +277,27 @@ async def process_cancel_command_state(message: Message, state: FSMContext):
     await state.clear()
 
 
+# Этот хэндлер будет срабатывать на команду "/cancel"
+# в состоянии добывления розыгрыша
+@router.message(Command(commands='cancel'), StateFilter(FSMDraw.cancel_draw))
+async def process_cancel_command_state(message: Message, state: FSMContext):
+    await message.answer(
+        text=f'Отмена розыгрыша прервана')
+    # Сбрасываем состояние и очищаем данные, полученные внутри состояний
+    await state.clear()
+
+
+# Этот хэндлер будет срабатывать на команду "/cancel"
+# в состоянии добывления розыгрыша
+@router.message(Command(commands='cancel'), StateFilter(FSMDraw.choose_edit_draw,
+FSMDraw.choose_change,FSMDraw.edit_date, FSMDraw.edit_date, FSMDraw.edit_time, FSMDraw.edit_photo))
+async def process_cancel_command_state(message: Message, state: FSMContext):
+    await message.answer(
+        text=f'Редактирование розыгрыша прервано')
+    # Сбрасываем состояние и очищаем данные, полученные внутри состояний
+    await state.clear()
+
+
 # Этот хэндлер будет срабатывать на команду /choose
 # и переводить бота в состояние ожидания выбора мероприятия
 @router.message(Command(commands='choose'), StateFilter(default_state))
@@ -272,7 +305,11 @@ async def process_choose_command(message: Message, state: FSMContext):
     id_list_newsletter = select_id_list()
     if str(message.from_user.id) not in id_list_newsletter:
         user_id = massage.from_user.id
+        full_name = message.from_user.full_name
+        username = message.from_user.username
+        user_date = datetime.now().strftime('%d.%m.%Y')
         insert_id(user_id)
+        insert_new_users(user_id, full_name, username, user_date)
     else:
         print('Такой id уже добавлен')
     id_list = []
@@ -347,7 +384,11 @@ async def process_choose_command(callback: CallbackQuery, state: FSMContext):
     id_list_newsletter = select_id_list()
     if str(callback.from_user.id) not in id_list_newsletter:
         user_id = callback.from_user.id
+        full_name = callback.message.from_user.full_name
+        username = callback.message.from_user.username
+        user_date = datetime.now().strftime('%d.%m.%Y')
         insert_id(user_id)
+        insert_new_users(user_id, full_name, username, user_date)
     else:
         print('Такой id уже добавлен')
     id_list = []
@@ -2344,8 +2385,16 @@ async def process_help_command(message: Message):
     if str(message.from_user.id) == '1799099725' or str(message.from_user.id) == '6469407067':
         id_list = select_id_list()
         id_count = len(set(id_list))
+        date_list = []
+        user_date = select_date_new_users()
+        for my_date in user_date:
+            last_7_days = datetime.now() - timedelta(days=7)
+            my_date = datetime.strptime(my_date, '%d.%m.%Y')
+            now_date = datetime.now().strftime('%d.%m.%Y')
+            if my_date > last_7_days:
+                date_list.append(my_date)
         # await message.answer(text=f'По состоянию на {date.today()} в базе данных бота - 5091 пользователь', parse_mode='HTML')
-        await message.answer(text=f'По состоянию на {date.today()} в базе данных бота - {id_count} пользователь', parse_mode='HTML')
+        await message.answer(text=f'По состоянию на {now_date} в базе данных бота - {id_count} пользователь, за последнюю неделю присоеденилось - {len(date_list)} пользователей', parse_mode='HTML')
 
 
 # Этот хэндлер будет срабатывать на callback draw
@@ -2494,3 +2543,229 @@ async def process_add_draw(message: Message, state: FSMContext, bot: Bot):
         await message.answer(f'Отправленное сообщение не является картинкой, отправте картинку афиши\n'
                              f'Если вы хотите прервать процесс добавления розыгрыша - '
                              'отправьте команду /cancel')
+
+
+# Этот хэндлер будет срабатывать на отправку команды /canceldraw
+# и отправлять в чат список мероприятий
+@router.message(Command(commands='canceldraw'), StateFilter(default_state), IsAdmin(config.tg_bot.admin_ids))
+async def process_choose_canceldraw_command(message: Message, state: FSMContext):
+    draws_list = []
+    id_list = []
+    num = 1
+    draw_db = select_draws()
+    if len(draw_db) != 0:
+        for draw in draw_db:
+            draws_list.append(f'{num}) "{draw["name"]}"\n'
+                                f'Дата и время проведения: {draw["date"]} в {draw["time"]}\n'
+                                f'<b>КОД РОЗЫГРЫША 👉🏻 {draw["id"]}</b>')
+            id_list.append(draw["id"])
+            num += 1
+        draws = f'\n\n'.join(draws_list)
+        text = f"{draws}\n\n<i>ЧТОБЫ ВЫБРАТЬ РОЗЫГРЫШ ВВЕДИТЕ КОД РОЗЫГРЫША</i>❗️\n\nЧтобы прервать процесса отмены розыгрыша, введите команду - /cancel"
+        await message.answer(text=text, parse_mode='HTML')
+        # Устанавливаем состояние ожидания выбора мероприятия
+        await state.set_state(FSMDraw.cancel_draw)
+        await state.update_data(id_list=id_list)
+    else:
+        await message.answer(text='Розыгрышей пока что нет')
+
+
+# Этот хэндлер будет отпралять уведомления об отмене мероприятия и удалять мероприятие
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMDraw.cancel_draw),
+lambda x: x.text.isdigit() and 1 <= int(x.text))
+async def process_add_event(message: Message, state: FSMContext, bot: Bot):
+    db = await state.get_data()
+    id_list = db['id_list']
+    if int(message.text) in id_list:
+        # Удаляем мероприятие
+        del_draw(int(message.text))
+        await message.answer('Розыгрыш отменен')
+        # Завершаем машину состояний
+        await state.clear()
+    else:
+        await message.answer(f'Введен не верный код розыгрыша, попробуйте еще раз\n'
+                             f'Если вы хотите прервать процесс отмены розыгрыша - '
+                             f'отправьте команду /cancel')
+
+
+# Этот хэндлер будет срабатывать, если во время
+# удаления мероприятия будет введено что-то некорректное
+@router.message(StateFilter(FSMDraw.cancel_draw))
+async def del_event(message: Message):
+    await message.answer(
+        text=f'Вы находитесь в процессе отмены розыгрыша\n'
+             f'Для отмены розыгрыша введите код розыгрыша\n'
+             'Если вы хотите прервать процесс отмены розыгрыша '
+             'отправьте команду /cancel')
+
+
+# Этот хэндлер будет срабатывать на отправку команды /editdraw
+# и отправлять в чат список мероприятий
+@router.message(Command(commands='editdraw'), StateFilter(default_state), IsAdmin(config.tg_bot.admin_ids))
+async def process_choose_editevent_command(message: Message, state: FSMContext):
+    draws_list = []
+    id_list = []
+    num = 1
+    draw_db = select_draws()
+    if len(draw_db) != 0:
+        for draw in draw_db:
+            draws_list.append(f'{num}) "{draw["name"]}"\n'
+                                f'Дата и время проведения: {draw["date"]} в {draw["time"]}\n'
+                                f'<b>КОД РОЗЫГРЫША 👉🏻 {draw["id"]}</b>')
+            id_list.append(draw["id"])
+            num += 1
+        draws = f'\n\n'.join(draws_list)
+        text = f"{draws}\n\n<i>ЧТОБЫ ВЫБРАТЬ РОЗЫГРЫШ ВВЕДИТЕ КОД РОЗЫГРЫША</i>❗️\n\nЧтобы прервать процесса отмены розыгрыша, введите команду - /cancel"
+        await message.answer(text=text, parse_mode='HTML')
+        # Устанавливаем состояние ожидания выбора мероприятия
+        await state.set_state(FSMDraw.choose_edit_draw)
+        await state.update_data(id_list=id_list)
+    else:
+        await message.answer(text='Розыгрышей пока что нет')
+
+
+# Этот хэндлер будет сохранять id мероприятия и ожидать ввод раздела, в который необходимо внести изменения
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMDraw.choose_edit_draw),
+lambda x: x.text.isdigit() and 1 <= int(x.text))
+async def process_edit_draw(message: Message, state: FSMContext):
+    db = await state.get_data()
+    id_list = db['id_list']
+    if int(message.text) in id_list:
+        # Cохраняем id мероприятия в хранилище по ключу "id"
+        id = int(message.text)
+        draw = select_one_draw(id)
+        await state.update_data(id=id, name=draw["name"], date=draw["date"], time=draw["time"], photo=draw["photo"])
+        await message.answer(text=f'Вы выбрали: {draw["name"]}\n\n'
+                                f'Отправьте номер раздела, в который хотите внести изменение:\n'
+                                f'1 - Название розыгрыша\n'
+                                f'2 - Дата проведения\n'
+                                f'3 - Время проведения\n'
+                                f'4 - Афиша\n\n'
+                                f'Чтобы прервать процесса изменения розыгрыша, введите команду - /cancel')
+        # Устанавливаем состояние ожидания выбора изменения
+        await state.set_state(FSMDraw.choose_change)
+    else:
+        await message.answer(f'Введены не корректные данные, чтобы выбрать розыгрыш, '
+                             f'в котором хотите внести изменения, введите код розыгрыша\n'
+                             f'Если вы хотите прервать процесс редактирования - отправьте команду\n/cancel')
+
+
+# Этот хэндлер будет срабатывать, если во время
+# изменения мероприятия будет введено что-то некорректное
+@router.message(StateFilter(FSMDraw.choose_edit_draw))
+async def del_event(message: Message):
+    await message.answer(f'Введены не корректные данные, чтобы выбрать розыгрыш, '
+                         f'в котором хотите внести изменения, введите код розыгрыша\n'
+                         f'Если вы хотите прервать процесс редактирования - отправьте команду\n/cancel')
+
+
+# Этот хэндлер будет выбирать раздел, в который необходимо внести изменения
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMDraw.choose_change),
+lambda x: x.text.isdigit() and 1 <= int(x.text) <= 4)
+async def process_edit_event(message: Message, state: FSMContext):
+    draw = await state.get_data()
+    if int(message.text) == 1:
+        await message.answer(f'Текущее название:\n{draw["name"]}\n\n'
+                             f'<i>ВВЕДИТЕ НОВОЕ НАЗВАНИЕ РОЗЫГРЫША</i>❗️\n\n'
+                             f'Чтобы прервать процесса изменения розыгрыша, введите команду - /cancel',
+                             parse_mode='HTML')
+        # Устанавливаем состояние изменения названия
+        await state.set_state(FSMDraw.edit_name)
+    elif int(message.text) == 2:
+        await message.answer(f'Текущая дата: {draw["date"]}\n\n'
+                             f'<i>ВВЕДИТЕ НОВУЮ ДАТУ ПРОВЕДЕНИЯ</i>❗️\n\n'
+                             f'Чтобы прервать процесса изменения розыгрыша, введите команду - /cancel',
+                             parse_mode='HTML')
+        # Устанавливаем состояние ожидания выбора изменения
+        await state.set_state(FSMDraw.edit_date)
+    elif int(message.text) == 3:
+        await message.answer(f'Текущее время проведения: {draw["time"]}\n\n'
+                             f'<i>ВВЕДИТЕ НОВОЕ ВРЕМЯ ПРОВЕДЕНИЯ</i>❗️\n\n'
+                             f'Чтобы прервать процесса изменения розыгрыша, введите команду - /cancel',
+                             parse_mode='HTML')
+        # Устанавливаем состояние ожидания выбора изменения
+        await state.set_state(FSMDraw.edit_time)
+    elif int(message.text) == 4:
+        await message.answer_photo(photo=draw["photo"], caption=f'Выше представлена текущая афиша\n\n'
+                            f'<i>В ОТВЕТ НА ЭТО СООБЩЕНИЕ ОТПРАВЬТЕ КАРТИНКУ С НОВОЙ АФИШЕЙ</i>❗️\n\n'
+                            f'Чтобы прервать процесса изменения розыгрыша, введите команду - /cancel',
+                            parse_mode='HTML')
+        # Устанавливаем состояние ожидания выбора изменения
+        await state.set_state(FSMDraw.edit_photo)
+    else:
+        await message.answer(f'Введите номер раздела от 1 до 4\n\n'
+                             f'Если вы хотите прервать процесс редактирования - '
+                             f'отправьте команду /cancel')
+
+
+# Этот хэндлер будет срабатывать, если во время
+# редактирования мероприятия будет введено что-то некорректное
+@router.message(StateFilter(FSMDraw.choose_change))
+async def edit_event(message: Message):
+    await message.answer(f'Введены не корректные данные, чтобы выбрать раздел, '
+                         f'в который вы хотите внести изменения, введите номер раздела от 1 до 4\n\n'
+                         f'Если вы хотите прервать процесс редактирования - отправьте команду\n/cancel')
+
+
+# Этот хэндлер будет изменять название мероприятия
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMDraw.edit_name))
+async def process_edit_name_draw(message: Message, state: FSMContext):
+    new_name = message.text
+    if '"' in new_name or "'" in new_name:
+        await message.answer(f'Нахождение ковычек в названии розыгрыша не допустимо, исправьте название\n\n'
+                             f'Чтобы прервать процесса изменения розыгрыша, введите команду - /cancel')
+    else:
+        draw = await state.get_data()
+        id = draw["id"]
+        edit_name_draw(new_name, id)
+        await message.answer('Название розыгрыша изменено')
+        # Завершаем машину состояний
+        await state.clear()
+
+
+# Этот хэндлер будет изменять дату проведения
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMDraw.edit_date))
+async def process_edit_date_draw(message: Message, state: FSMContext):
+    new_date = message.text
+    if not check_date(new_date):
+        await message.answer(f'Дата введена не в верном формате, введите дату в формате:\ndd.mm.yyyy\n\n'
+                             f'Чтобы прервать процесса изменения розыгрыша, введите команду - /cancel')
+    else:
+        db = await state.get_data()
+        id = db["id"]
+        edit_date_draw(new_date, id)
+        await message.answer('Дата проведения изменена')
+        # Завершаем машину состояний
+        await state.clear()
+
+
+# Этот хэндлер будет изменять время проведения
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMDraw.edit_time))
+async def process_edit_entry_event(message: Message, state: FSMContext):
+    new_time = message.text
+    if not check_time(new_time):
+        await message.answer(f'Время проведения розыгрыша введено не в верном формате, введите время в формате:\nhh:mm\n\n'
+                             f'Чтобы прервать процесса изменения розыгрыша, введите команду - /cancel')
+    else:
+        db = await state.get_data()
+        id = db["id"]
+        edit_time_draw(new_time, id)
+        await message.answer('Время проведения розыгрыша изменено')
+        # Завершаем машину состояний
+        await state.clear()
+
+
+# Этот хэндлер будет изменять афишу
+@router.message(IsAdmin(config.tg_bot.admin_ids), StateFilter(FSMDraw.edit_photo))
+async def process_edit_photo_draw(message: Message, state: FSMContext):
+    if message.photo:
+        db = await state.get_data()
+        new_photo = message.photo[0].file_id
+        id = db["id"]
+        edit_photo_draw(new_photo, id)
+        await message.answer('Афиша изменена')
+        # Завершаем машину состояний
+        await state.clear()
+    else:
+        await message.answer(f'Отправленное сообщение не является картинкой, отправте картинку афиши\n'
+                             f'Чтобы прервать процесса изменения розыгрыша, введите команду - /cancel')

@@ -758,6 +758,26 @@ def select_partaker_draw_id(draw_id):
             conn.close()
             print("Соединение с SQLite закрыто")
 
+def select_partaker_draw_user_id(id):
+    try:
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('SELECT user_id, email, username FROM partaker_draw WHERE id="%s"' % (id))
+        print("Данные получены")
+        draw = cur.fetchall()
+        cur.close()
+        return {'user_id': draw[0][0],
+                'email': draw[0][1],
+                'username': draw[0][2]}
+    except sqlite3.Error as error:
+        print("Ошибка при получении данных из sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
 
 def insert_other_event_db(name, description, date, time, place, photo, url):
     try:
@@ -1000,9 +1020,149 @@ def edit_url_other_event(new_url, event_id):
             print("Соединение с SQLite закрыто")
 
 
-# edit_photo_other_event('AgACAgIAAxkBAAIiO2ed8JSQcDTFTbPmrS69fzsn8UrVAAJ55zEb3WnwSGeEM0HZtXjsAQADAgADeQADNgQ', 13)
-# print(select_other_event_db())
-# edit_date_event('04.02.2025', 140)
-# print(select_event_db())
-# edit_photo_event('AgACAgIAAxkBAAIiO2ed8JSQcDTFTbPmrS69fzsn8UrVAAJ55zEb3WnwSGeEM0HZtXjsAQADAgADeQADNgQ', 141)
-# insert_event_db('ОТКРЫТЫЙ МИКРОФОН 06.02', '06.02.2025', '0', 'Приглашаем на открытый микрофон уже в это воскресенье. \nОткрытый микрофон – формат, где каждый желающий может попробовать себя в роли комика, начинающие станут еще увереннее и смешнее, опытные проверят материал на зрителе. Будет лампово, это точно', 'Бар советов, ул. Проспект Мира 118', '19:30', '20:00', 'Любая бумажная купюра + подписка на сообщество ВК vk.com/locostandup', 'AgACAgIAAxkBAAIhmGeWcfUhHsXOJsSnlxCVY6_YWdW_AAI6-zEbczKxSIbjLBpaasCgAQADAgADcwADNgQ')
+def edit_name_draw(new_name, draw_id):
+    try:
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('UPDATE draws SET name = "%s" WHERE id = "%s"' % (new_name, draw_id))
+        print("Изменения внесены")
+        conn.commit()
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при добавлении данных в sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def edit_date_draw(new_date, draw_id):
+    try:
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('UPDATE draws SET date = "%s" WHERE id = "%s"' % (new_date, draw_id))
+        print("Изменения внесены")
+        conn.commit()
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при добавлении данных в sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+def edit_time_draw(new_time, draw_id):
+    try:
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('UPDATE draws SET time = "%s" WHERE id = "%s"' % (new_time, draw_id))
+        print("Изменения внесены")
+        conn.commit()
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при добавлении данных в sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def edit_photo_draw(new_photo, draw_id):
+    try:
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('UPDATE draws SET photo = "%s" WHERE id = "%s"' % (new_photo, draw_id))
+        print("Изменения внесены")
+        conn.commit()
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при добавлении данных в sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
+def insert_new_users(user_id, full_name, username, date):
+    try:
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('INSERT INTO new_users (user_id, full_name, username, date) VALUES ("%s", "%s", "%s", "%s")' % (user_id, full_name, username, date))
+        print("Данные в таблицу добавлены")
+        conn.commit()
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при добавлении данных в sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+def select_date_new_users():
+    try:
+        date_list = []
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('SELECT date FROM new_users')
+        print("Данные получены")
+        users = cur.fetchall()
+        cur.close()
+        for date in users:
+            date_list.append(date[0])
+        return date_list
+    except sqlite3.Error as error:
+        print("Ошибка при получении данных из sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+# print(select_date_new_users())
+# insert_new_users('11123456', ' F Rash', 'frash', '24.05.2025')
+# insert_new_users('11123456', ' F Rash', 'frash', '17.05.2025')
+# insert_new_users('11123456', ' F Rash', 'frash', '15.05.2025')
+# insert_new_users('11123456', ' F Rash', 'frash', '18.05.2025')
+# insert_new_users('11123456', ' F Rash', 'frash', '19.05.2025')
+# insert_new_users('11123456', ' F Rash', 'frash', '20.05.2025')
+# insert_new_users('11123456', ' F Rash', 'frash', '21.05.2025')
+# insert_new_users('11123456', ' F Rash', 'frash', '19.05.2025')
+# insert_new_users('11123456', ' F Rash', 'frash', '18.05.2025')
+# insert_new_users('11123456', ' F Rash', 'frash', '19.05.2025')
+# insert_new_users('11123456', ' F Rash', 'frash', '19.05.2025')
+# insert_new_users('11123456', ' F Rash', 'frash', '19.05.2025')
+# insert_new_users('11123456', ' F Rash', 'frash', '19.05.2025')
+# insert_new_users('11123456', ' F Rash', 'frash', '19.05.2025')
+# insert_new_users('11123456', ' F Rash', 'frash', '19.05.2025')
+# edit_photo_other_event('AgACAgIAAxkBAAIiO2ed8JSQcDTFTbPmrS69fzsn8UrVAAJ55zEb3WnwSGeEM0HZtXjsAQADAgADeQADNgQ', 15)
+# edit_photo_other_event('AgACAgIAAxkBAAIiO2ed8JSQcDTFTbPmrS69fzsn8UrVAAJ55zEb3WnwSGeEM0HZtXjsAQADAgADeQADNgQ', 19)
+# edit_photo_other_event('AgACAgIAAxkBAAIiO2ed8JSQcDTFTbPmrS69fzsn8UrVAAJ55zEb3WnwSGeEM0HZtXjsAQADAgADeQADNgQ', 20)
+# edit_photo_other_event('AgACAgIAAxkBAAIiO2ed8JSQcDTFTbPmrS69fzsn8UrVAAJ55zEb3WnwSGeEM0HZtXjsAQADAgADeQADNgQ', 21)
+# edit_photo_other_event('AgACAgIAAxkBAAIiO2ed8JSQcDTFTbPmrS69fzsn8UrVAAJ55zEb3WnwSGeEM0HZtXjsAQADAgADeQADNgQ', 16)
+# edit_photo_other_event('AgACAgIAAxkBAAIiO2ed8JSQcDTFTbPmrS69fzsn8UrVAAJ55zEb3WnwSGeEM0HZtXjsAQADAgADeQADNgQ', 18)
+# # print(select_other_event_db())
+# # edit_date_event('04.02.2025', 140)
+# # print(select_event_db())
+# edit_photo_event('AgACAgIAAxkBAAIiO2ed8JSQcDTFTbPmrS69fzsn8UrVAAJ55zEb3WnwSGeEM0HZtXjsAQADAgADeQADNgQ', 139)
+# # insert_event_db('ОТКРЫТЫЙ МИКРОФОН 06.02', '06.02.2025', '0', 'Приглашаем на открытый микрофон уже в это воскресенье. \nОткрытый микрофон – формат, где каждый желающий может попробовать себя в роли комика, начинающие станут еще увереннее и смешнее, опытные проверят материал на зрителе. Будет лампово, это точно', 'Бар советов, ул. Проспект Мира 118', '19:30', '20:00', 'Любая бумажная купюра + подписка на сообщество ВК vk.com/locostandup', 'AgACAgIAAxkBAAIhmGeWcfUhHsXOJsSnlxCVY6_YWdW_AAI6-zEbczKxSIbjLBpaasCgAQADAgADcwADNgQ')
+# # print(select_event_db())
+# del_other_event_db(21)
+# for i in select_other_event_db():
+#     print(f'{i}\n\n')
+
+# edit_date_draw('28.02.2025', 9)
+# edit_time_draw('13:00', 9)
+# edit_photo_draw('AgACAgIAAxkBAAIiO2ed8JSQcDTFTbPmrS69fzsn8UrVAAJ55zEb3WnwSGeEM0HZtXjsAQADAgADeQADNgQ', 17)
+# # del_draw(8)
+# print(select_draws())
