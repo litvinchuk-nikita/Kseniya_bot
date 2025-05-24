@@ -2387,10 +2387,10 @@ async def process_help_command(message: Message):
         id_count = len(set(id_list))
         date_list = []
         user_date = select_date_new_users()
+        now_date = datetime.now().strftime('%d.%m.%Y')
         for my_date in user_date:
             last_7_days = datetime.now() - timedelta(days=7)
             my_date = datetime.strptime(my_date, '%d.%m.%Y')
-            now_date = datetime.now().strftime('%d.%m.%Y')
             if my_date > last_7_days:
                 date_list.append(my_date)
         # await message.answer(text=f'По состоянию на {date.today()} в базе данных бота - 5091 пользователь', parse_mode='HTML')
