@@ -1653,10 +1653,10 @@ async def process_choose_command(callback: CallbackQuery, state: FSMContext):
     if len(event_db) != 0:
         for event in event_db:
             events_list.append(f'{num}) Название мероприятия: {event["name"]}\n'
-                               f'Краткое описание мероприятия: {event["description"]}\n'
+                            #    f'Краткое описание мероприятия: {event["description"]}\n'
                                f'Дата проведения: {event["date"]}\n'
-                               f'Время проведения: {event["time"]}\n'
-                               f'Место проведения и адрес: {event["place"]}\n'
+                            #    f'Время проведения: {event["time"]}\n'
+                            #    f'Место проведения и адрес: {event["place"]}\n'
                                f'<b>КОД МЕРОПРИЯТИЯ 👉🏻 {event["id"]}</b>')
             num += 1
         events = f'\n\n'.join(events_list)
