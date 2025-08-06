@@ -2496,6 +2496,9 @@ async def process_add_draw(message: Message, state: FSMContext):
         if '"' in add_list[0] or "'" in add_list[0]:
             await message.answer('Нахождение ковычек в название розыгрыша не допустимо, исправьте название')
             error += 1
+        if len(add_list[0]) >= 2000:
+            await message.answer(f'Название розыгрыша слишком длинное, исправьте название. Допустипое количество символом - 2000, текущее количество символов - {len(add_list[0])}')
+            error += 1
         if not check_date(add_list[1]):
             await message.answer(f'Дата введена не в верном формате, введите дату в формате:\ndd.mm.yyyy')
             error += 1
