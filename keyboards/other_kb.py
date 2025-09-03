@@ -10,7 +10,7 @@ def create_menu_kb() -> InlineKeyboardMarkup:
     cancelreserv_button: InlineKeyboardButton = InlineKeyboardButton(
         text='Возможности бота', callback_data='help')
     review_button: InlineKeyboardButton = InlineKeyboardButton(
-        text='Оставить отзыв', callback_data='review')
+        text='Отзывы и обратная связь', callback_data='review')
     draw_button: InlineKeyboardButton = InlineKeyboardButton(
         text='Участвовать в розыгрыше', callback_data='draw')
     kb_builder: InlineKeyboardBuilder = InlineKeyboardBuilder()
@@ -29,6 +29,28 @@ def review_kb() -> InlineKeyboardMarkup:
     kb_builder: InlineKeyboardBuilder = InlineKeyboardBuilder()
     kb_builder.add(button_1, button_2, button_3)
     kb_builder.adjust(1, 1, 1)
+    return kb_builder.as_markup()
+
+
+def privacy_review_kb() -> InlineKeyboardMarkup:
+    button_1: InlineKeyboardButton = InlineKeyboardButton(
+        text='Продолжить', callback_data='privacy_ok')
+    button_2: InlineKeyboardButton = InlineKeyboardButton(
+        text='Отменить отправку отзыва', callback_data='cancel_review')
+    kb_builder: InlineKeyboardBuilder = InlineKeyboardBuilder()
+    kb_builder.add(button_1, button_2)
+    kb_builder.adjust(1, 1)
+    return kb_builder.as_markup()
+
+
+def privacy_event_kb() -> InlineKeyboardMarkup:
+    button_1: InlineKeyboardButton = InlineKeyboardButton(
+        text='Продолжить', callback_data='privacy_ok')
+    button_2: InlineKeyboardButton = InlineKeyboardButton(
+        text='Отменить бронирование', callback_data='cancel')
+    kb_builder: InlineKeyboardBuilder = InlineKeyboardBuilder()
+    kb_builder.add(button_1, button_2)
+    kb_builder.adjust(1, 1)
     return kb_builder.as_markup()
 
 

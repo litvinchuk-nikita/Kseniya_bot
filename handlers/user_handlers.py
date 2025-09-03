@@ -5,7 +5,7 @@ from aiogram import Router, F, Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import default_state, State, StatesGroup
 from aiogram.filters import Command, CommandStart, Text, StateFilter
-from aiogram.types import CallbackQuery, Message, URLInputFile, InputMediaPhoto, ContentType
+from aiogram.types import CallbackQuery, Message, URLInputFile, InputMediaPhoto, ContentType,FSInputFile
 from database.database import (insert_event_db, insert_reserv_db, del_event_db, select_event_id,
                                select_event_db, select_reserv_db, del_reserv_db, select_capacity_event_db,
                                select_capacity_event, select_for_admin_reserv_db, select_event_name_db,
@@ -23,7 +23,7 @@ from database.database import (insert_event_db, insert_reserv_db, del_event_db, 
 from keyboards.other_kb import (create_menu_kb, review_kb, send_review_kb, answer_review_kb, cancel_review_kb,
                                 send_review_kb_2, cancel_answer_kb, send_answer_kb, last_review_kb, newsletter_kb,
                                 draw_kb, choose_event_kb, url_event_kb, choose_add_event_kb, create_pag_kb, choose_edit_event_kb,
-                                create_pag_kb_url, choose_cancel_event_kb)
+                                create_pag_kb_url, choose_cancel_event_kb, privacy_event_kb, privacy_review_kb)
 from lexicon.lexicon import LEXICON
 from filters.filters import IsAdmin
 from services.file_handling import now_time, check_date, check_time, event_date, check_phone, draw_datetime
@@ -44,6 +44,7 @@ class FSMFillForm(StatesGroup):
     event_choosing = State()        # Состояние выбора мероприятия
     guests_choosing = State()       # Состояние выбора количества гостей
     send_number = State()           # Состояние ввода номера телефона
+    privacy = State()               # Состояние согласия с обработкой персональных данных
 
 
 class FSMCancelReserv(StatesGroup):
@@ -156,6 +157,16 @@ async def process_help_command(message: Message):
         await message.answer(LEXICON['/help_admin'], parse_mode='HTML')
     else:
         await message.answer(LEXICON['/help'], parse_mode='HTML')
+
+
+# этот хэндлер будет срабатывать на команду "/privacy"
+# и отправлять пользователю сообщение со ссылкой на политику конфиденциальности
+@router.message(Command(commands='privacy'))
+async def process_help_command(message: Message):
+    # document = FSInputFile('/Users/nikita/Desktop/Документы_Никита/Stepik/Kseniya_bot/privacy.pdf')
+    document = FSInputFile('/home/nikita/Kseniya_bot/privacy.pdf')
+    await message.answer_document(caption=f'<b>Бот для брони зрительских мест функционирует в соответствии с требованиями Федерального закона №152-ФЗ «О персональных данных» и определяет порядок обработки персональных данных, осуществляемой Индивидуальным предпринимателем Утицыной К. С.\nОзнакомиться с политикой конфиденциальности можно в закрепленном файле</b>', document=document, protect_content=True, parse_mode='HTML')
+    # await message.answer(f'<b>Бот для брони зрительских мест функционирует в соответствии с требованиями Федерального закона №152-ФЗ «О персональных данных» и определяет порядок обработки персональных данных, осуществляемой Индивидуальным предпринимателем Утицыной К. С.\nОзнакомиться с политикой конфиденциальности можно <a href="https://docs.google.com/document/d/1xIzaW9Fu-OsklM4exVVSiyLBRrsto6UG/edit?usp=sharing&ouid=102837261678226727912&rtpof=true&sd=true">здесь</a></b>', disable_web_page_preview=True, parse_mode='HTML')
 
 
 # этот хэндлер будет срабатывать на callback "help"
@@ -607,34 +618,19 @@ async def warning_not_guests(message: Message):
              'Если вы хотите прервать бронирование - '
              'отправьте команду /cancel', parse_mode='HTML')
 
-
 # Этот хэндлер будет срабатывать, если введен корректно номер телефона
 @router.message(StateFilter(FSMFillForm.send_number))
-async def process_guests_choosing(message: Message, state: FSMContext):
+async def process_privacy_choosing(message: Message, state: FSMContext):
     if check_phone(message.text):
-        db = await state.get_data()
-        capacity = int(select_capacity_event(db['id']))
-        new_capacity = str(capacity - db["guests"])
-        edit_capacity_event(new_capacity, db['id'])
-        # Добавляем в базу данных бронирование пользователя
-        insert_reserv_db(str(message.from_user.id), db['name'], str(db["guests"]),
-                         db['date'], db["place"], db['entry'], db['start'],
-                          str(message.from_user.full_name), str(message.from_user.username), str(message.text), db['photo'])
-        # Завершаем машину состояний
-        await state.clear()
-        # Отправляем в чат сообщение о бронировании
-        await message.answer(
-            text=f'Все готово! ✨\nВы забронировали {db["guests"]} мест(а) на "{db["name"]}" {db["date"]} в {db["place"]}\n'
-                 f'<b>Время сбора гостей {db["entry"]}</b>\n<b>Начало {db["start"]}\n</b>'
-                 f'Пожалуйста, приходите ко времени сбора гостей, чтобы заказать еду и напитки,'
-                 f' а также насладиться классной музыкой и атмосферой перед шоу 🍷\n\n'
-                 f'<i>Немного правил: рассадку в зале осуществляет администратор. Количество мест за столиком не всегда эквивалентно количеству мест в вашей брони. </i>'
-                 f'<i>Для сохранения театральной рассадки мы подсаживаем зрителей друг к другу. Надеемся на ваше понимание.</i>\n'
-                 f'<b><i>Для того, чтобы наверняка сидеть вместе со своими друзьями, пожалуйста, приходите ко времени сбора гостей.</i></b>\n'
-                 f'<i>В случае, если вы не придёте бронирование будет аннулировано в момент начала мероприятия, а ваши места предоставлены другим зрителям.</i> ⚠️\n\n'
-                 f'<i>Если остались вопросы пишите: @Kafa_tsk</i>\n\n'
-                 f'Чтобы отменить бронь введите команду\n/cancelreservation',
-                 parse_mode='HTML')
+        # Cохраняем количество гостей в переменную guests
+        phone = int(message.text)
+        await state.update_data(phone=phone)
+        # document = FSInputFile('/Users/nikita/Desktop/Документы_Никита/Stepik/Kseniya_bot/privacy.pdf')
+        document = FSInputFile('/home/nikita/Kseniya_bot/privacy.pdf')
+        await message.answer_document(caption=f'<b>Продолжая бронирование вы даёте согласие на обработку персональных данных.\n\nОзнакомиться с политикой конфиденциальности можно в закрепленном файле</b>', document=document, protect_content=True, reply_markup=privacy_event_kb(), parse_mode='HTML')
+        # await message.answer(f'<b>Продолжая бронирование вы даёте согласие на обработку персональных данных.\n\nОзнакомиться с политикой конфиденциальности можно <a href="https://disk.yandex.ru/i/k6UyeYTlUI_-7Q">здесь</a></b>', disable_web_page_preview=True, reply_markup=privacy_event_kb(), parse_mode='HTML')
+        # Устанавливаем состояние ожидания согласия на обработку персональных данных
+        await state.set_state(FSMFillForm.privacy)
     else:
         await message.answer(f'Номер телефена введен не верно, введите номер согласно образца:\n'
                              f'89999999999\n\n'
@@ -648,6 +644,43 @@ async def process_guests_choosing(message: Message, state: FSMContext):
 async def warning_not_guests(message: Message):
     await message.answer(f'Номер телефена введен не верно, введите номер согласно образца:\n'
                          f'89999999999\n\n'
+                         'Если вы хотите прервать бронирование - '
+                         'отправьте команду /cancel')
+
+
+# Этот хэндлер будет срабатывать, если пользователь согласен на обработку персональных данных
+@router.callback_query(Text(text='privacy_ok'), StateFilter(FSMFillForm.privacy))
+async def process_privacy_choosing(callback: CallbackQuery, state: FSMContext):
+    db = await state.get_data()
+    capacity = int(select_capacity_event(db['id']))
+    new_capacity = str(capacity - db["guests"])
+    edit_capacity_event(new_capacity, db['id'])
+    # Добавляем в базу данных бронирование пользователя
+    insert_reserv_db(str(callback.message.from_user.id), db['name'], str(db["guests"]),
+                        db['date'], db["place"], db['entry'], db['start'],
+                        str(callback.message.from_user.full_name), str(callback.message.from_user.username), db["phone"], db['photo'])
+    # Завершаем машину состояний
+    await state.clear()
+    # Отправляем в чат сообщение о бронировании
+    await callback.message.answer(
+        text=f'Все готово! ✨\nВы забронировали {db["guests"]} мест(а) на "{db["name"]}" {db["date"]} в {db["place"]}\n'
+                f'<b>Время сбора гостей {db["entry"]}</b>\n<b>Начало {db["start"]}\n</b>'
+                f'Пожалуйста, приходите ко времени сбора гостей, чтобы заказать еду и напитки,'
+                f' а также насладиться классной музыкой и атмосферой перед шоу 🍷\n\n'
+                f'<i>Немного правил: рассадку в зале осуществляет администратор. Количество мест за столиком не всегда эквивалентно количеству мест в вашей брони. </i>'
+                f'<i>Для сохранения театральной рассадки мы подсаживаем зрителей друг к другу. Надеемся на ваше понимание.</i>\n'
+                f'<b><i>Для того, чтобы наверняка сидеть вместе со своими друзьями, пожалуйста, приходите ко времени сбора гостей.</i></b>\n'
+                f'<i>В случае, если вы не придёте бронирование будет аннулировано в момент начала мероприятия, а ваши места предоставлены другим зрителям.</i> ⚠️\n\n'
+                f'<i>Если остались вопросы пишите: @Kafa_tsk</i>\n\n'
+                f'Чтобы отменить бронь введите команду\n/cancelreservation',
+                parse_mode='HTML')
+
+
+# Этот хэндлер будет срабатывать, если во время
+# ввода номера телефона введено что-то некорректное
+@router.message(StateFilter(FSMFillForm.privacy))
+async def warning_not_guests(message: Message):
+    await message.answer(f'Для подтверждения бронирования нажмите на кнопку "Продолжить"'
                          'Если вы хотите прервать бронирование - '
                          'отправьте команду /cancel')
 
@@ -2179,11 +2212,26 @@ class FSMReview(StatesGroup):
     write_answer = State()                 # Состояние ввода ответа на отзыв
     choose_edit_send_review = State()      # Состояние выбора редактирования/отправки отзыва
     choose_edit_send_answer = State()      # Состояние выбора редактирования/отправки ответа на отзыв
+    privacy = State()                      # Состояние уведомления о политеке конфиденциальности
+    privacy_ok = State()                   # Состояние согласия с обработкой персональных данных
 
 
 # этот хэндлер будет срабатывать на нажатие кнопки "Оставить отзыв"
 # и отправлять пользователю сообщение с выбором вариантов отправки отзыва
 @router.callback_query(Text(text='review'), StateFilter(default_state))
+async def process_review_command(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    await callback.message.delete()
+    # document = FSInputFile('/Users/nikita/Desktop/Документы_Никита/Stepik/Kseniya_bot/privacy.pdf')
+    document = FSInputFile('/home/nikita/Kseniya_bot/privacy.pdf')
+    await callback.message.answer_document(caption=f'<b>Бот для брони зрительских мест функционирует в соответствии с требованиями Федерального закона №152-ФЗ «О персональных данных» и определяет порядок обработки персональных данных, осуществляемой Индивидуальным предпринимателем Утицыной К. С.\nОзнакомиться с политикой конфиденциальности можно в закрепленном файле</b>', document=document, protect_content=True, reply_markup=privacy_review_kb(), parse_mode='HTML')
+    # await callback.message.answer(f'<b>Бот для брони зрительских мест функционирует в соответствии с требованиями Федерального закона №152-ФЗ «О персональных данных» и определяет порядок обработки персональных данных, осуществляемой Индивидуальным предпринимателем Утицыной К. С.\nОзнакомиться с политикой конфиденциальности можно <a href="https://disk.yandex.ru/i/k6UyeYTlUI_-7Q">здесь</a></b>', disable_web_page_preview=True, reply_markup=privacy_review_kb(), parse_mode='HTML')
+    await state.set_state(FSMReview.privacy)
+
+
+
+# этот хэндлер будет срабатывать на нажатие кнопки "Оставить отзыв"
+# и отправлять пользователю сообщение с выбором вариантов отправки отзыва
+@router.callback_query(Text(text='privacy_ok'), StateFilter(FSMReview.privacy))
 async def process_review_command(callback: CallbackQuery, state: FSMContext, bot: Bot):
     await callback.message.delete()
     await state.set_state(FSMReview.choose_review)
@@ -2224,6 +2272,16 @@ async def process_anonim_command(callback: CallbackQuery, state: FSMContext, bot
 # отправлять пользователю сообщение  о вводе текста отзыва и
 # переводить в состояние написания отзыва
 @router.callback_query(Text(text='not_anonim'), StateFilter(FSMReview.choose_review))
+async def process_not_anonim_command(callback: CallbackQuery, state: FSMContext, bot: Bot):
+    await callback.message.delete()
+    await callback.message.answer('<b>Продолжая действие вы даёте согласие на обработку персональных данных</b>', parse_mode='HTML', reply_markup=privacy_review_kb())
+    await state.set_state(FSMReview.privacy_ok)
+
+
+# этот хэндлер будет срабатывать на нажатие кнопки "Продолжить"
+# отправлять пользователю сообщение  о вводе текста отзыва и
+# переводить в состояние написания отзыва
+@router.callback_query(Text(text='privacy_ok'), StateFilter(FSMReview.privacy_ok))
 async def process_not_anonim_command(callback: CallbackQuery, state: FSMContext, bot: Bot):
     await callback.message.delete()
     await callback.message.answer('Введите ваше имя', parse_mode='HTML', reply_markup=cancel_review_kb())
