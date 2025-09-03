@@ -655,12 +655,14 @@ async def process_privacy_choosing(callback: CallbackQuery, state: FSMContext):
     capacity = int(select_capacity_event(db['id']))
     new_capacity = str(capacity - db["guests"])
     edit_capacity_event(new_capacity, db['id'])
+    print(callback.from_user)
     # Добавляем в базу данных бронирование пользователя
     insert_reserv_db(str(callback.message.from_user.id), db['name'], str(db["guests"]),
                         db['date'], db["place"], db['entry'], db['start'],
-                        str(callback.message.from_user.full_name), str(callback.message.from_user.username), db["phone"], db['photo'])
+                        str(callback.from_user.full_name), str(callback.from_user.username), db["phone"], db['photo'])
     # Завершаем машину состояний
     await state.clear()
+    await callback.message.delete()
     # Отправляем в чат сообщение о бронировании
     await callback.message.answer(
         text=f'Все готово! ✨\nВы забронировали {db["guests"]} мест(а) на "{db["name"]}" {db["date"]} в {db["place"]}\n'
