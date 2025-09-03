@@ -19,7 +19,7 @@ from database.database import (insert_event_db, insert_reserv_db, del_event_db, 
                                select_other_event_db, del_other_event_db, edit_date_other_event, edit_name_other_event,
                                edit_description_other_event, edit_time_other_event, edit_place_other_event, edit_photo_other_event,
                                edit_url_other_event, select_other_event_id, del_draw, edit_name_draw, edit_date_draw, edit_time_draw,
-                               edit_photo_draw, insert_new_users, select_date_new_users)
+                               edit_photo_draw, insert_new_users, select_date_new_users, del_admin_reserv_db)
 from keyboards.other_kb import (create_menu_kb, review_kb, send_review_kb, answer_review_kb, cancel_review_kb,
                                 send_review_kb_2, cancel_answer_kb, send_answer_kb, last_review_kb, newsletter_kb,
                                 draw_kb, choose_event_kb, url_event_kb, choose_add_event_kb, create_pag_kb, choose_edit_event_kb,
@@ -625,8 +625,8 @@ async def process_privacy_choosing(message: Message, state: FSMContext):
         # Cохраняем количество гостей в переменную guests
         phone = int(message.text)
         await state.update_data(phone=phone)
-        # document = FSInputFile('/Users/nikita/Desktop/Документы_Никита/Stepik/Kseniya_bot/privacy.pdf')
-        document = FSInputFile('/home/nikita/Kseniya_bot/privacy.pdf')
+        document = FSInputFile('/Users/nikita/Desktop/Документы_Никита/Stepik/Kseniya_bot/privacy.pdf')
+        # document = FSInputFile('/home/nikita/Kseniya_bot/privacy.pdf')
         await message.answer_document(caption=f'<b>Продолжая бронирование вы даёте согласие на обработку персональных данных.\n\nОзнакомиться с политикой конфиденциальности можно в закрепленном файле</b>', document=document, protect_content=True, reply_markup=privacy_event_kb(), parse_mode='HTML')
         # await message.answer(f'<b>Продолжая бронирование вы даёте согласие на обработку персональных данных.\n\nОзнакомиться с политикой конфиденциальности можно <a href="https://disk.yandex.ru/i/k6UyeYTlUI_-7Q">здесь</a></b>', disable_web_page_preview=True, reply_markup=privacy_event_kb(), parse_mode='HTML')
         # Устанавливаем состояние ожидания согласия на обработку персональных данных
@@ -657,7 +657,7 @@ async def process_privacy_choosing(callback: CallbackQuery, state: FSMContext):
     edit_capacity_event(new_capacity, db['id'])
     print(callback.from_user)
     # Добавляем в базу данных бронирование пользователя
-    insert_reserv_db(str(callback.message.from_user.id), db['name'], str(db["guests"]),
+    insert_reserv_db(str(callback.from_user.id), db['name'], str(db["guests"]),
                         db['date'], db["place"], db['entry'], db['start'],
                         str(callback.from_user.full_name), str(callback.from_user.username), db["phone"], db['photo'])
     # Завершаем машину состояний
@@ -1032,12 +1032,11 @@ async def process_cancel_reservation(message: Message, state: FSMContext):
             print('Данное мероприятие уже удалено из БД')
         finally:
             # Удаляем бронирование
-            del_reserv_db(str(message.from_user.id), int(message.text))
+            del_admin_reserv_db(int(message.text))
             # Завершаем машину состояний
             await state.clear()
             # Отправляем в чат сообщение об отмене бронирования
-            await message.answer(
-                text=f'Бронирование отменено')
+            await message.answer(text=f'Бронирование отменено')
     else:
         await message.answer(f'Введен не верный код бронирования, попробуйте еще раз\n\n'
                              'Если вы хотите прервать процесс отмены брони - '

@@ -255,6 +255,24 @@ def del_reserv_db(user_id, reserv_id):
             print("Соединение с SQLite закрыто")
 
 
+def del_admin_reserv_db(reserv_id):
+    try:
+        conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
+        # conn = sqlite3.connect('Kseniya_bot/db.sql', timeout=20)
+        cur = conn.cursor()
+        print("База данных подключена к SQLite")
+        cur.execute('DELETE FROM user WHERE id="%s";' % (reserv_id))
+        conn.commit()
+        print("Данные удалены")
+        cur.close()
+    except sqlite3.Error as error:
+        print("Ошибка при обновлении данных из sqlite", error.__class__, error)
+    finally:
+        if (conn):
+            conn.close()
+            print("Соединение с SQLite закрыто")
+
+
 def cancel_reserv(event_name):
     try:
         conn = sqlite3.connect('/home/nikita/Kseniya_bot/db.sql', timeout=20)
@@ -348,6 +366,7 @@ def select_user_id_reserv(event_name):
         if (conn):
             conn.close()
             print("Соединение с SQLite закрыто")
+
 
 
 def edit_name_event(new_name, event_id):
@@ -1155,14 +1174,18 @@ def select_date_new_users():
 # # edit_date_event('04.02.2025', 140)
 # # print(select_event_db())
 # edit_photo_event('AgACAgIAAxkBAAIiO2ed8JSQcDTFTbPmrS69fzsn8UrVAAJ55zEb3WnwSGeEM0HZtXjsAQADAgADeQADNgQ', 139)
-# # insert_event_db('ОТКРЫТЫЙ МИКРОФОН 06.02', '06.02.2025', '0', 'Приглашаем на открытый микрофон уже в это воскресенье. \nОткрытый микрофон – формат, где каждый желающий может попробовать себя в роли комика, начинающие станут еще увереннее и смешнее, опытные проверят материал на зрителе. Будет лампово, это точно', 'Бар советов, ул. Проспект Мира 118', '19:30', '20:00', 'Любая бумажная купюра + подписка на сообщество ВК vk.com/locostandup', 'AgACAgIAAxkBAAIhmGeWcfUhHsXOJsSnlxCVY6_YWdW_AAI6-zEbczKxSIbjLBpaasCgAQADAgADcwADNgQ')
-# # print(select_event_db())
+# insert_event_db('ОТКРЫТЫЙ МИКРОФОН 05.09', '05.09.2025', '10', 'Приглашаем на открытый микрофон уже в это воскресенье. \nОткрытый микрофон – формат, где каждый желающий может попробовать себя в роли комика, начинающие станут еще увереннее и смешнее, опытные проверят материал на зрителе. Будет лампово, это точно', 'Бар советов, ул. Проспект Мира 118', '19:30', '20:00', 'Любая бумажная купюра + подписка на сообщество ВК vk.com/locostandup', 'AgACAgIAAxkBAAIhmGeWcfUhHsXOJsSnlxCVY6_YWdW_AAI6-zEbczKxSIbjLBpaasCgAQADAgADcwADNgQ')
+# print(select_event_db())
 # del_other_event_db(21)
 # for i in select_other_event_db():
 #     print(f'{i}\n\n')
+# del_event_db(173)
+# for i in select_event_db():
+    # print(f'{i}\n\n')
 
 # edit_date_draw('28.02.2025', 9)
 # edit_time_draw('13:00', 9)
 # edit_photo_draw('AgACAgIAAxkBAAIiO2ed8JSQcDTFTbPmrS69fzsn8UrVAAJ55zEb3WnwSGeEM0HZtXjsAQADAgADeQADNgQ', 17)
-# # del_draw(8)
+# del_draw(19)
 # print(select_draws())
+# print(select_for_admin_reserv_db('ОТКРЫТЫЙ МИКРОФОН 05.09'))
