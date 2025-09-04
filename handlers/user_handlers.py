@@ -625,8 +625,8 @@ async def process_privacy_choosing(message: Message, state: FSMContext):
         # Cохраняем количество гостей в переменную guests
         phone = int(message.text)
         await state.update_data(phone=phone)
-        document = FSInputFile('/Users/nikita/Desktop/Документы_Никита/Stepik/Kseniya_bot/privacy.pdf')
-        # document = FSInputFile('/home/nikita/Kseniya_bot/privacy.pdf')
+        # document = FSInputFile('/Users/nikita/Desktop/Документы_Никита/Stepik/Kseniya_bot/privacy.pdf')
+        document = FSInputFile('/home/nikita/Kseniya_bot/privacy.pdf')
         await message.answer_document(caption=f'<b>Продолжая бронирование вы даёте согласие на обработку персональных данных.\n\nОзнакомиться с политикой конфиденциальности можно в закрепленном файле</b>', document=document, protect_content=True, reply_markup=privacy_event_kb(), parse_mode='HTML')
         # await message.answer(f'<b>Продолжая бронирование вы даёте согласие на обработку персональных данных.\n\nОзнакомиться с политикой конфиденциальности можно <a href="https://disk.yandex.ru/i/k6UyeYTlUI_-7Q">здесь</a></b>', disable_web_page_preview=True, reply_markup=privacy_event_kb(), parse_mode='HTML')
         # Устанавливаем состояние ожидания согласия на обработку персональных данных
